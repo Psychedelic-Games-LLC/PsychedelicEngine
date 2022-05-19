@@ -16,20 +16,20 @@
 # A FleetAutoscaler is used to scale the fleet automatically
 # up and down depending on usage
 #
-{{- if (.Values.gameserver).enabled }}
+{{- if (.Values.instanceserver).enabled }}
 apiVersion: "autoscaling.agones.dev/v1"
 kind: FleetAutoscaler
 metadata:
-  name: {{ include "xrengine.gameserver.fullname" . }}
+  name: {{ include "xrengine.instanceserver.fullname" . }}
 spec:
-  fleetName: {{ include "xrengine.gameserver.fullname" . }}
+  fleetName: {{ include "xrengine.instanceserver.fullname" . }}
   policy:
     type: Buffer
     buffer:
-      {{- if not (empty .Values.gameserver.buffer) }}
-      bufferSize: {{ .Values.gameserver.buffer.bufferSize | default 2 }}
-      minReplicas: {{ .Values.gameserver.buffer.minReplicas | default 2 }}
-      maxReplicas: {{ .Values.gameserver.buffer.maxReplicas | default 10 }}
+      {{- if not (empty .Values.instanceserver.buffer) }}
+      bufferSize: {{ .Values.instanceserver.buffer.bufferSize | default 2 }}
+      minReplicas: {{ .Values.instanceserver.buffer.minReplicas | default 2 }}
+      maxReplicas: {{ .Values.instanceserver.buffer.maxReplicas | default 10 }}
       {{- else }}
       bufferSize: 2
       minReplicas: 2

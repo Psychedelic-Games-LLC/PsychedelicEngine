@@ -13,47 +13,47 @@
 # limitations under the License.
 
 #
-# Full example of a Fleet resource - a set of warm GameServers
+# Full example of a Fleet resource - a set of warm InstanceServers
 # that are available to be allocated from.
-# To allocate a GameServer from a Fleet, use a GameServerAllocation
+# To allocate a InstanceServer from a Fleet, use a InstanceServerAllocation
 #
-{{- if (.Values.gameserver).enabled }}
+{{- if (.Values.instanceserver).enabled }}
 apiVersion: "agones.dev/v1"
 kind: Fleet
 # Fleet Metadata
 # https://v1-14.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#objectmeta-v1-meta
 metadata:
-  name: {{ include "xrengine.gameserver.fullname" . }}
+  name: {{ include "xrengine.instanceserver.fullname" . }}
 spec:
-  # the number of GameServers to keep Ready or Allocated in this Fleet. Defaults to 0
-  replicas: {{ .Values.gameserver.replicaCount }}
-    # defines how GameServers are organised across the cluster.
+  # the number of InstanceServers to keep Ready or Allocated in this Fleet. Defaults to 0
+  replicas: {{ .Values.instanceserver.replicaCount }}
+    # defines how InstanceServers are organised across the cluster.
     # Options include:
     # "Packed" (default) is aimed at dynamic Kubernetes clusters, such as cloud providers, wherein we want to bin pack
     # resources
     # "Distributed" is aimed at static Kubernetes clusters, wherein we want to distribute resources across the entire
     # cluster
     # scheduling: Packed
-    # a GameServer template - see:
-    # https://agones.dev/site/docs/reference/gameserver/ for all the options
+    # a InstanceServer template - see:
+    # https://agones.dev/site/docs/reference/instanceserver/ for all the options
     # strategy:
-    # The replacement strategy for when the GameServer template is changed. Default option is "RollingUpdate",
+    # The replacement strategy for when the InstanceServer template is changed. Default option is "RollingUpdate",
     # "RollingUpdate" will increment by maxSurge value on each iteration, while decrementing by maxUnavailable on each
-    # iteration, until all GameServers have been switched from one version to another.
-    # "Recreate" terminates all non-allocated GameServers, and starts up a new set with the new details to replace them.
+    # iteration, until all InstanceServers have been switched from one version to another.
+    # "Recreate" terminates all non-allocated InstanceServers, and starts up a new set with the new details to replace them.
     # type: RollingUpdate
     # Only relevant when `type: RollingUpdate`
     # rollingUpdate:
-    # the amount to increment the new GameServers by. Defaults to 25%
+    # the amount to increment the new InstanceServers by. Defaults to 25%
     # maxSurge: 25%
-    # the amount to decrements GameServers by. Defaults to 25%
+    # the amount to decrements InstanceServers by. Defaults to 25%
   # maxUnavailable: 25%
   template:
-    # GameServer metadata
+    # InstanceServer metadata
     metadata:
       labels:
-        {{- include "xrengine.gameserver.labels" . | nindent 8 }}
-    # GameServer specification
+        {{- include "xrengine.instanceserver.labels" . | nindent 8 }}
+    # InstanceServer specification
     spec:
       ports:
         - name: default
@@ -870,26 +870,26 @@ spec:
         #  - "Debug" The SDK server will output all messages including debug messages
         #  - "Error" The SDK server will only output error messages
         # logLevel: Info
-      # The GameServer's Pod template
+      # The InstanceServer's Pod template
       template:
         spec:
-          serviceAccountName: {{ include "xrengine.gameserver.serviceAccountName" . }}
+          serviceAccountName: {{ include "xrengine.instanceserver.serviceAccountName" . }}
           {{- $releaseName := .Release.Name }}
           {{ if not (empty .Values.release) }}
             {{- $releaseName = .Values.release.name | default .Release.Name }}
           {{ end }}
           containers:
-            - name: {{ include "xrengine.gameserver.fullname" . }}
-              image: "{{ .Values.gameserver.image.repository }}:{{ .Values.gameserver.image.tag }}"
-              imagePullPolicy: {{ .Values.gameserver.image.pullPolicy }}
+            - name: {{ include "xrengine.instanceserver.fullname" . }}
+              image: "{{ .Values.instanceserver.image.repository }}:{{ .Values.instanceserver.image.tag }}"
+              imagePullPolicy: {{ .Values.instanceserver.image.pullPolicy }}
 
-            {{- with .Values.gameserver.resources }}
+            {{- with .Values.instanceserver.resources }}
               resources:
                 {{- toYaml . | nindent 16 }}
             {{- end }}
               envFrom:
                 - configMapRef:
-                    name: {{ include "xrengine.gameserver.fullname" . }}
+                    name: {{ include "xrengine.instanceserver.fullname" . }}
                     optional: true
 
               env:
@@ -969,11 +969,11 @@ spec:
                     secretKeyRef:
                       name: {{ $releaseName }}-redis
                       key: redis-password
-        {{- with .Values.gameserver.nodeSelector }}
+        {{- with .Values.instanceserver.nodeSelector }}
           nodeSelector:
             {{- toYaml . | nindent 12 }}
         {{- end }}
-        {{- with .Values.gameserver.affinity }}
+        {{- with .Values.instanceserver.affinity }}
           affinity:
             {{- toYaml . | nindent 12 }}
         {{- end }}

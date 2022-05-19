@@ -1,16 +1,16 @@
-{{- if (.Values.gameserver).enabled -}}
+{{- if (.Values.instanceserver).enabled -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "xrengine.gameserver.fullname" . }}
+  name: {{ include "xrengine.instanceserver.fullname" . }}
   labels:
-    {{- include "xrengine.gameserver.labels" . | nindent 4 }}
+    {{- include "xrengine.instanceserver.labels" . | nindent 4 }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "xrengine.gameserver.serviceAccountName" . }}
+    name: {{ include "xrengine.instanceserver.serviceAccountName" . }}
     namespace: default
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "xrengine.gameserver.fullname" . }}
+  name: {{ include "xrengine.instanceserver.fullname" . }}
 {{- end -}}

@@ -1,18 +1,18 @@
-{{- if and (.Values.gameserver).enabled (ne (((.Values.gameserver).ingress).disabled | default "") "true") -}}
-{{- $fullName := include "xrengine.gameserver.fullname" . -}}
+{{- if and (.Values.instanceserver).enabled (ne (((.Values.instanceserver).ingress).disabled | default "") "true") -}}
+{{- $fullName := include "xrengine.instanceserver.fullname" . -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ $fullName }}
   labels:
-    {{- include "xrengine.gameserver.labels" . | nindent 4 }}
-  {{- with ((.Values.gameserver).ingress).annotations }}
+    {{- include "xrengine.instanceserver.labels" . | nindent 4 }}
+  {{- with ((.Values.instanceserver).ingress).annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
   rules:
-    - host: {{ ((.Values.gameserver).ingress).host }}
+    - host: {{ ((.Values.instanceserver).ingress).host }}
       http:
         paths:
           - path: /

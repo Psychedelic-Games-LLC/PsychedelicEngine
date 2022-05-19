@@ -12,14 +12,14 @@ import getLocalServerIp from '../../util/get-local-server-ip'
 
 const releaseRegex = /^([a-zA-Z0-9]+)-/
 
-const gsNameRegex = /gameserver-([a-zA-Z0-9]{5}-[a-zA-Z0-9]{5})/
+const isNameRegex = /instanceserver-([a-zA-Z0-9]{5}-[a-zA-Z0-9]{5})/
 const pressureThresholdPercent = 0.8
 
 /**
  * An method which start server for instance
  * @author Vyacheslav Solovjov
  */
-export async function getFreeGameserver(
+export async function getFreeInstanceserver(
   app: Application,
   iteration: number,
   locationId: string,
@@ -41,7 +41,7 @@ export async function getFreeGameserver(
     const stringIp = `${localIp.ipAddress}:${localIp.port}`
     return checkForDuplicatedAssignments(app, stringIp, iteration, locationId, channelId)
   }
-  logger.info('Getting free gameserver')
+  logger.info('Getting free instanceserver')
   const serverResult = await app.k8AgonesClient.listNamespacedCustomObject('agones.dev', 'v1', 'default', 'gameservers')
   const readyServers = _.filter((serverResult.body as any).items, (server: any) => {
     const releaseMatch = releaseRegex.exec(server.metadata.name)
@@ -117,12 +117,12 @@ export async function checkForDuplicatedAssignments(
     if (!isFirstAssignment) {
       //If this is not the first assignment to this IP, remove the assigned instance row
       await app.service('instance').remove(assignResult.id)
-      //If this is the 10th or more attempt to get a free gameserver, then there probably aren't any free ones,
+      //If this is the 10th or more attempt to get a free instanceserver, then there probably aren't any free ones,
       //
       if (iteration < 10) {
-        return getFreeGameserver(app, iteration + 1, locationId, channelId)
+        return getFreeInstanceserver(app, iteration + 1, locationId, channelId)
       } else {
-        logger.info('Made 10 attempts to get free gameserver without success, returning null')
+        logger.info('Made 10 attempts to get free instanceserver without success, returning null')
         return {
           id: null!,
           ipAddress: null!,
@@ -159,8 +159,8 @@ export class InstanceProvision implements ServiceMethods<any> {
   async setup() {}
 
   /**
-   * A method which get instance of GameServer
-   * @param availableLocationInstances for Gameserver
+   * A method which gets and instance of Instanceserver
+   * @param availableLocationInstances for Instanceserver
    * @param locationId
    * @param channelId
    * @returns id, ipAddress and port
@@ -190,12 +190,12 @@ export class InstanceProvision implements ServiceMethods<any> {
         ...localIp
       }
     }
-    const gsCleanup = await this.gsCleanup(instances[0])
-    if (gsCleanup) {
+    const isCleanup = await this.isCleanup(instances[0])
+    if (isCleanup) {
       logger.info('GS did not exist and was cleaned up')
       if (availableLocationInstances.length > 1)
         return this.getGSInService(availableLocationInstances.slice(1), locationId, channelId)
-      else return getFreeGameserver(this.app, 0, locationId, channelId)
+      else return getFreeInstanceserver(this.app, 0, locationId, channelId)
     }
     logger.info('GS existed, using it')
     const ipAddressSplit = instances[0].ipAddress.split(':')
@@ -207,8 +207,8 @@ export class InstanceProvision implements ServiceMethods<any> {
   }
 
   /**
-   * A method that attempts to clean up a gameserver that no longer exists
-   * Currently-running gameservers are fetched via Agones client and their IP addresses
+   * A method that attempts to clean up a instanceserver that no longer exists
+   * Currently-running instanceserver are fetched via Agones client and their IP addresses
    * compared against that of the instance in question. If there's no match, then the instance
    * record is out-of date, it should be set to 'ended', and its subdomain provision should be freed.
    * Returns false if the GS still exists and no cleanup was done, true if the GS does not exist and
@@ -219,27 +219,27 @@ export class InstanceProvision implements ServiceMethods<any> {
    * @author Vyacheslav Solovjov
    */
 
-  async gsCleanup(instance): Promise<boolean> {
-    const gameservers = await this.app.k8AgonesClient.listNamespacedCustomObject(
+  async isCleanup(instance): Promise<boolean> {
+    const instanceservers = await this.app.k8AgonesClient.listNamespacedCustomObject(
       'agones.dev',
       'v1',
       'default',
       'gameservers'
     )
-    const gsIds = (gameservers?.body as any)?.items.map((gs) =>
-      gsNameRegex.exec(gs.metadata.name) != null ? gsNameRegex.exec(gs.metadata.name)![1] : null!
+    const isIds = (instanceservers?.body as any)?.items.map((is) =>
+      isNameRegex.exec(is.metadata.name) != null ? isNameRegex.exec(is.metadata.name)![1] : null!
     )
     const [ip, port] = instance.ipAddress.split(':')
-    const match = (gameservers?.body as any)?.items?.find((gs) => {
-      const inputPort = gs.status.ports?.find((port) => port.name === 'default')
-      return gs.status.address === ip && inputPort?.port?.toString() === port
+    const match = (instanceservers?.body as any)?.items?.find((is) => {
+      const inputPort = is.status.ports?.find((port) => port.name === 'default')
+      return is.status.address === ip && inputPort?.port?.toString() === port
     })
     if (match == null) {
       const patchInstance: any = {
         ended: true
       }
       await this.app.service('instance').patch(instance.id, { ...patchInstance })
-      await this.app.service('gameserver-subdomain-provision').patch(
+      await this.app.service('instanceserver-subdomain-provision').patch(
         null,
         {
           allocated: false
@@ -247,8 +247,8 @@ export class InstanceProvision implements ServiceMethods<any> {
         {
           query: {
             instanceId: null,
-            gs_id: {
-              $nin: gsIds
+            is_id: {
+              $nin: isIds
             }
           }
         }
@@ -268,10 +268,10 @@ export class InstanceProvision implements ServiceMethods<any> {
   }
 
   /**
-   * A method which find running Gameserver
+   * A method which finds a running Instanceserver
    *
    * @param params of query of locationId and instanceId
-   * @returns {@function} getFreeGameserver and getGSInService
+   * @returns {@function} getFreeInstanceserver and getGSInService
    * @author Vyacheslav Solovjov
    */
 
@@ -302,11 +302,11 @@ export class InstanceProvision implements ServiceMethods<any> {
             ended: false
           }
         })
-        if (channelInstance == null) return getFreeGameserver(this.app, 0, null!, channelId)
+        if (channelInstance == null) return getFreeInstanceserver(this.app, 0, null!, channelId)
         else {
           if (config.kubernetes.enabled) {
-            const gsCleanup = await this.gsCleanup(channelInstance)
-            if (gsCleanup) return getFreeGameserver(this.app, 0, null!, channelId)
+            const isCleanup = await this.isCleanup(channelInstance)
+            if (isCleanup) return getFreeInstanceserver(this.app, 0, null!, channelId)
           }
           const ipAddressSplit = channelInstance.ipAddress.split(':')
           return {
@@ -338,11 +338,11 @@ export class InstanceProvision implements ServiceMethods<any> {
         }
         if (instanceId != null) {
           const instance: any = await this.app.service('instance').get(instanceId)
-          if (instance == null || instance.ended === true) return getFreeGameserver(this.app, 0, locationId, null!)
-          let gsCleanup
-          if (config.kubernetes.enabled) gsCleanup = await this.gsCleanup(instance)
+          if (instance == null || instance.ended === true) return getFreeInstanceserver(this.app, 0, locationId, null!)
+          let isCleanup
+          if (config.kubernetes.enabled) isCleanup = await this.isCleanup(instance)
           if (
-            (!config.kubernetes.enabled || (config.kubernetes.enabled && !gsCleanup)) &&
+            (!config.kubernetes.enabled || (config.kubernetes.enabled && !isCleanup)) &&
             instance.currentUsers < location.maxUsersPerInstance
           ) {
             const ipAddressSplit = instance.ipAddress.split(':')
@@ -488,7 +488,7 @@ export class InstanceProvision implements ServiceMethods<any> {
               (instanceAuthorizedUser) => instanceAuthorizedUser.userId === userId
             )
         )
-        if (allowedLocationInstances.length === 0) return getFreeGameserver(this.app, 0, locationId, null!)
+        if (allowedLocationInstances.length === 0) return getFreeInstanceserver(this.app, 0, locationId, null!)
         else return this.getGSInService(allowedLocationInstances, locationId, channelId)
       }
     } catch (err) {

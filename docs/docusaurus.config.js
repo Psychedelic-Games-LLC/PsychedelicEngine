@@ -136,16 +136,16 @@ module.exports = {
     [
       'docusaurus-plugin-typedoc',
       {
-        id: 'gameserver',
-        entryPoints: ['../packages/gameserver/src/'],
+        id: 'instanceserver',
+        entryPoints: ['../packages/instanceserver/src/'],
         entryPointStrategy: 'expand',
-        tsconfig: '../packages/gameserver/tsconfig.json',
+        tsconfig: '../packages/instanceserver/tsconfig.json',
         exclude: [
           ...commonExludePaths,
-          '../packages/gameserver/.mocharc.js',
-          '../packages/gameserver/vite.build.js'
+          '../packages/instanceserver/.mocharc.js',
+          '../packages/instanceserver/vite.build.js'
         ],
-        out: 'generated/gameserver',
+        out: 'generated/instanceserver',
         readme: 'none',
       },
     ],

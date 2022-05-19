@@ -23,6 +23,6 @@ docs-client/
 docs-client-core/
 docs-client-common/
 docs-client-engine/
-docs-client-gameserver/
+docs-client-instanceserver/
 docs-client-server-core/
 sidebar/typedoc-*
