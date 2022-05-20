@@ -39,13 +39,18 @@ export class IdentityProvider<T = IdentityProviderInterface> extends Service<T> 
   async create(data: any, params: Params = {}): Promise<T & { accessToken?: string }> {
     let { token, type, password } = data
     let user
+    let authResult
 
+    console.log('data', data)
     if (params.authentication) {
-      const authResult = await (this.app.service('authentication') as any).strategies.jwt.authenticate(
+      console.log('params.authentication', params.authentication)
+      authResult = await (this.app.service('authentication') as any).strategies.jwt.authenticate(
         { accessToken: params.authentication.accessToken },
         {}
       )
+      console.log('authResult', authResult)
       if (authResult[config.authentication.entity]?.userId) {
+        console.log('userId', authResult[config.authentication.entity]?.userId)
         user = await this.app.service('user').get(authResult[config.authentication.entity]?.userId)
       }
     }
@@ -57,7 +62,7 @@ export class IdentityProvider<T = IdentityProviderInterface> extends Service<T> 
       type !== 'sms'
     )
       type = 'guest' //Non-password/magiclink create requests must always be for guests
-    let userId = data.userId
+    let userId = data.userId || (authResult ? authResult[config.authentication.entity]?.userId : null)
     let identityProvider: any
 
     switch (type) {

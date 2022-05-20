@@ -16,7 +16,7 @@ export class LinkedInStrategy extends CustomOAuthStrategy {
     return {
       ...baseData,
       email: profile.email,
-      type: 'linkdlin',
+      type: 'linkedin',
       userId
     }
   }
@@ -45,11 +45,14 @@ export class LinkedInStrategy extends CustomOAuthStrategy {
       await this.app.service('user-api-key').create({
         userId: entity.userId
       })
-    if (entity.type !== 'guest') {
+    if (entity.type !== 'guest' && identityProvider.type === 'guest') {
       await this.app.service('identity-provider').remove(identityProvider.id)
       await this.app.service('user').remove(identityProvider.userId)
+      return super.updateEntity(entity, profile, params)
     }
-    return super.updateEntity(entity, profile, params)
+    const existingEntity = await super.findEntity(profile, params)
+    if (!existingEntity) return super.createEntity(profile, params)
+    else return existingEntity
   }
 
   async getRedirect(data: any, params: Params): Promise<string> {
