@@ -51,8 +51,12 @@ export class Googlestrategy extends CustomOAuthStrategy {
       return super.updateEntity(entity, profile, params)
     }
     const existingEntity = await super.findEntity(profile, params)
+    console.log('Checking what to do', existingEntity, identityProvider)
     if (!existingEntity) return super.createEntity(profile, params)
-    else return existingEntity
+    else if (existingEntity.userId === identityProvider.userId) return existingEntity
+    else {
+      throw new Error('Another user is linked to this account')
+    }
   }
 
   async getRedirect(data: any, params: Params): Promise<string> {

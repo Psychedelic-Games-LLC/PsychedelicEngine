@@ -228,7 +228,8 @@
   },
   "oauth": {
     "authenticating": "Authenticating...",
-    "authFailed": "{{service}} authentication failed."
+    "authFailed": "{{service}} authentication failed.",
+    "redirectToRoot": "Return to Home"
   },
   "magikLink": {
     "wait": "Please wait a moment while processing..."

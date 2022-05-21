@@ -41,16 +41,12 @@ export class IdentityProvider<T = IdentityProviderInterface> extends Service<T> 
     let user
     let authResult
 
-    console.log('data', data)
     if (params.authentication) {
-      console.log('params.authentication', params.authentication)
       authResult = await (this.app.service('authentication') as any).strategies.jwt.authenticate(
         { accessToken: params.authentication.accessToken },
         {}
       )
-      console.log('authResult', authResult)
       if (authResult[config.authentication.entity]?.userId) {
-        console.log('userId', authResult[config.authentication.entity]?.userId)
         user = await this.app.service('user').get(authResult[config.authentication.entity]?.userId)
       }
     }
