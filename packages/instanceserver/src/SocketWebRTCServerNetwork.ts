@@ -12,7 +12,7 @@ import multiLogger from '@xrengine/server-core/src/logger'
 import { setupSubdomain } from './NetworkFunctions'
 import { startWebRTC } from './WebRTCFunctions'
 
-const logger = multiLogger.child({ component: 'gameserver:webrtc:network' })
+const logger = multiLogger.child({ component: 'instanceserver:webrtc:network' })
 
 export class SocketWebRTCServerNetwork extends Network {
   workers: Worker[] = []

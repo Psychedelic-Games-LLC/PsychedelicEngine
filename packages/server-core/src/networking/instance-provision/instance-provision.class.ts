@@ -35,7 +35,7 @@ export async function getFreeInstanceserver(
   })
   if (!config.kubernetes.enabled) {
     //Clear any instance assignments older than 30 seconds - those assignments have not been
-    //used, so they should be cleared and the GS they were attached to can be used for something else.
+    //used, so they should be cleared and the IS they were attached to can be used for something else.
     logger.info('Local server spinning up new instance')
     const localIp = await getLocalServerIp(channelId != null)
     const stringIp = `${localIp.ipAddress}:${localIp.port}`
@@ -107,7 +107,7 @@ export async function checkForDuplicatedAssignments(
   if (duplicateAssignment.total > 1) {
     let isFirstAssignment = true
     //Iterate through all of the assignments to this IP address. If this one is later than any other one,
-    //then this one needs to find a different GS
+    //then this one needs to find a different IS
     for (let instance of duplicateAssignment.data) {
       if (instance.id !== assignResult.id && instance.assignedAt < assignResult.assignedAt) {
         isFirstAssignment = false
@@ -167,7 +167,7 @@ export class InstanceProvision implements ServiceMethods<any> {
    * @author Vyacheslav Solovjov
    */
 
-  async getGSInService(availableLocationInstances, locationId: string, channelId: string): Promise<any> {
+  async getISInService(availableLocationInstances, locationId: string, channelId: string): Promise<any> {
     await this.app.service('instance').Model.destroy({
       where: {
         assigned: true,
@@ -192,12 +192,12 @@ export class InstanceProvision implements ServiceMethods<any> {
     }
     const isCleanup = await this.isCleanup(instances[0])
     if (isCleanup) {
-      logger.info('GS did not exist and was cleaned up')
+      logger.info('IS did not exist and was cleaned up')
       if (availableLocationInstances.length > 1)
-        return this.getGSInService(availableLocationInstances.slice(1), locationId, channelId)
+        return this.getISInService(availableLocationInstances.slice(1), locationId, channelId)
       else return getFreeInstanceserver(this.app, 0, locationId, channelId)
     }
-    logger.info('GS existed, using it')
+    logger.info('IS existed, using it')
     const ipAddressSplit = instances[0].ipAddress.split(':')
     return {
       id: instances[0].id,
@@ -211,7 +211,7 @@ export class InstanceProvision implements ServiceMethods<any> {
    * Currently-running instanceserver are fetched via Agones client and their IP addresses
    * compared against that of the instance in question. If there's no match, then the instance
    * record is out-of date, it should be set to 'ended', and its subdomain provision should be freed.
-   * Returns false if the GS still exists and no cleanup was done, true if the GS does not exist and
+   * Returns false if the IS still exists and no cleanup was done, true if the IS does not exist and
    * a cleanup was performed.
    *
    * @param instance of ipaddress and port
@@ -271,7 +271,7 @@ export class InstanceProvision implements ServiceMethods<any> {
    * A method which finds a running Instanceserver
    *
    * @param params of query of locationId and instanceId
-   * @returns {@function} getFreeInstanceserver and getGSInService
+   * @returns {@function} getFreeInstanceserver and getISInService
    * @author Vyacheslav Solovjov
    */
 
@@ -489,7 +489,7 @@ export class InstanceProvision implements ServiceMethods<any> {
             )
         )
         if (allowedLocationInstances.length === 0) return getFreeInstanceserver(this.app, 0, locationId, null!)
-        else return this.getGSInService(allowedLocationInstances, locationId, channelId)
+        else return this.getISInService(allowedLocationInstances, locationId, channelId)
       }
     } catch (err) {
       logger.error(err)

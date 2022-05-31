@@ -77,30 +77,30 @@ export const setupSubdomain = async (network: SocketWebRTCServerNetwork) => {
 }
 
 export async function getFreeSubdomain(
-  network: SocketWebRTCServerNetwork,
-  isIdentifier: string,
-  subdomainNumber: number
+    network: SocketWebRTCServerNetwork,
+    isIdentifier: string,
+    subdomainNumber: number
 ): Promise<string> {
   const stringSubdomainNumber = subdomainNumber.toString().padStart(config.instanceserver.identifierDigits, '0')
-  const subdomainResult = await network.app.service('gameserver-subdomain-provision').find({
+  const subdomainResult = await network.app.service('instanceserver-subdomain-provision').find({
     query: {
       is_number: stringSubdomainNumber
     }
   })
   if ((subdomainResult as any).total === 0) {
-    await network.app.service('gameserver-subdomain-provision').create({
+    await network.app.service('instanceserver-subdomain-provision').create({
       allocated: true,
       is_number: stringSubdomainNumber,
       is_id: isIdentifier
     })
 
     await new Promise((resolve) =>
-      setTimeout(async () => {
-        resolve(true)
-      }, 500)
+        setTimeout(async () => {
+          resolve(true)
+        }, 500)
     )
 
-    const newSubdomainResult = (await network.app.service('gameserver-subdomain-provision').find({
+    const newSubdomainResult = (await network.app.service('instanceserver-subdomain-provision').find({
       query: {
         is_number: stringSubdomainNumber
       }
@@ -112,18 +112,18 @@ export async function getFreeSubdomain(
     if (subdomain.allocated === true || subdomain.allocated === 1) {
       return getFreeSubdomain(network, isIdentifier, subdomainNumber + 1)
     }
-    await network.app.service('gameserver-subdomain-provision').patch(subdomain.id, {
+    await network.app.service('instanceserver-subdomain-provision').patch(subdomain.id, {
       allocated: true,
       is_id: isIdentifier
     })
 
     await new Promise((resolve) =>
-      setTimeout(async () => {
-        resolve(true)
-      }, 500)
+        setTimeout(async () => {
+          resolve(true)
+        }, 500)
     )
 
-    const newSubdomainResult = (await network.app.service('gameserver-subdomain-provision').find({
+    const newSubdomainResult = (await network.app.service('instanceserver-subdomain-provision').find({
       query: {
         is_number: stringSubdomainNumber
       }
@@ -133,7 +133,7 @@ export async function getFreeSubdomain(
   }
 }
 
-export async function cleanupOldGameservers(network: SocketWebRTCServerNetwork): Promise<void> {
+export async function cleanupOldInstanceservers(network: SocketWebRTCServerNetwork): Promise<void> {
   const instances = await network.app.service('instance').Model.findAndCountAll({
     offset: 0,
     limit: 1000,
@@ -142,45 +142,45 @@ export async function cleanupOldGameservers(network: SocketWebRTCServerNetwork):
     }
   })
   const instanceservers = await network.app.k8AgonesClient.listNamespacedCustomObject(
-    'agones.dev',
-    'v1',
-    'default',
-    'gameservers'
+      'agones.dev',
+      'v1',
+      'default',
+      'gameservers'
   )
 
   await Promise.all(
-    instances.rows.map((instance) => {
-      if (!instance.ipAddress) return false
-      const [ip, port] = instance.ipAddress.split(':')
-      const match = (instanceservers?.body! as any).items.find((is) => {
-        if (is.status.ports == null || is.status.address === '') return false
-        const inputPort = is.status.ports.find((port) => port.name === 'default')
-        return is.status.address === ip && inputPort.port.toString() === port
+      instances.rows.map((instance) => {
+        if (!instance.ipAddress) return false
+        const [ip, port] = instance.ipAddress.split(':')
+        const match = (instanceservers?.body! as any).items.find((is) => {
+          if (is.status.ports == null || is.status.address === '') return false
+          const inputPort = is.status.ports.find((port) => port.name === 'default')
+          return is.status.address === ip && inputPort.port.toString() === port
+        })
+        return match == null
+            ? network.app.service('instance').patch(instance.id, {
+              ended: true
+            })
+            : Promise.resolve()
       })
-      return match == null
-        ? network.app.service('instance').patch(instance.id, {
-            ended: true
-          })
-        : Promise.resolve()
-    })
   )
 
   const isIds = (instanceservers?.body! as any).items.map((is) =>
-    isNameRegex.exec(is.metadata.name) != null ? isNameRegex.exec(is.metadata.name)![1] : null
+      isNameRegex.exec(is.metadata.name) != null ? isNameRegex.exec(is.metadata.name)![1] : null
   )
 
-  await network.app.service('gameserver-subdomain-provision').patch(
-    null,
-    {
-      allocated: false
-    },
-    {
-      query: {
-        is_id: {
-          $nin: isIds
+  await network.app.service('instanceserver-subdomain-provision').patch(
+      null,
+      {
+        allocated: false
+      },
+      {
+        query: {
+          is_id: {
+            $nin: isIds
+          }
         }
       }
-    }
   )
 
   return
@@ -192,12 +192,12 @@ export function getUserIdFromSocketId(socketId: string) {
 }
 
 export async function handleConnectToWorld(
-  network: SocketWebRTCServerNetwork,
-  socket: Socket,
-  data,
-  callback,
-  userId: UserId,
-  user: UserInterface
+    network: SocketWebRTCServerNetwork,
+    socket: Socket,
+    data,
+    callback,
+    userId: UserId,
+    user: UserInterface
 ) {
   logger.info('Connect to world from ' + userId)
 
@@ -255,12 +255,12 @@ function disconnectClientIfConnected(network: SocketWebRTCServerNetwork, socket:
 }
 
 export const handleJoinWorld = async (
-  network: SocketWebRTCServerNetwork,
-  socket: Socket,
-  data,
-  callback: (args: JoinWorldProps) => void,
-  joinedUserId: UserId,
-  user
+    network: SocketWebRTCServerNetwork,
+    socket: Socket,
+    data,
+    callback: (args: JoinWorldProps) => void,
+    joinedUserId: UserId,
+    user
 ) => {
   logger.info('Join World Request Received: %o', { joinedUserId, data, user })
   if (disconnectClientIfConnected(network, socket, joinedUserId)) return callback(null! as any)
@@ -320,8 +320,8 @@ export const handleJoinWorld = async (
   // send all cached and outgoing actions to joining user
   const cachedActions = [] as Required<Action>[]
   for (const action of Engine.instance.store.actions.cached[network.hostId] as Array<
-    ReturnType<typeof WorldNetworkAction.spawnAvatar>
-  >) {
+      ReturnType<typeof WorldNetworkAction.spawnAvatar>
+      >) {
     // we may have a need to remove the check for the prefab type to enable this to work for networked objects too
     if (action.type === 'network.SPAWN_OBJECT' && action.prefab === 'avatar') {
       const ownerId = action.$from
@@ -378,7 +378,7 @@ export async function handleDisconnect(network: SocketWebRTCServerNetwork, socke
   const disconnectedClient = world?.clients.get(userId)
   if (!disconnectedClient)
     return logger.warn(
-      'Disconnecting client ' + userId + ' was undefined, probably already handled from JoinWorld handshake.'
+        'Disconnecting client ' + userId + ' was undefined, probably already handled from JoinWorld handshake.'
     )
   // On local, new connections can come in before the old sockets are disconnected.
   // The new connection will overwrite the socketID for the user's client.
@@ -396,10 +396,10 @@ export async function handleDisconnect(network: SocketWebRTCServerNetwork, socke
 }
 
 export async function handleLeaveWorld(
-  network: SocketWebRTCServerNetwork,
-  socket: Socket,
-  data,
-  callback
+    network: SocketWebRTCServerNetwork,
+    socket: Socket,
+    data,
+    callback
 ): Promise<any> {
   const world = Engine.instance.currentWorld
   const userId = getUserIdFromSocketId(socket.id)!
