@@ -82,7 +82,7 @@ You may have to accept the invalid self-signed certificate for it in the browser
 see 'Allow local file http-server connection with invalid certificate' below.
 
 ### 6. Open two/three separate tabs and start the API server, instanceserver and client
-In /packages/server, run ```npm run dev``` which will launch the api server, game server and file server.
+In /packages/server, run ```npm run dev``` which will launch the api server, world server, media server and file server.
 If you are not using instanceservers, you can instead run ```npm run dev-api-server``` in the api server.
 In the final tab, go to /packages/client and run ```npm run dev```.
 If you are on windows you need to use ```npm run dev-windows``` instead of ```npm run dev```.

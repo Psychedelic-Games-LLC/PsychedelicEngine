@@ -616,17 +616,9 @@ const onConnection = (app: Application) => async (connection: SocketIOConnection
    */
   if (app.instance) {
     if (locationId && app.instance.locationId !== locationId)
-      return logger.warn(
-        '[loadGameserver]: got a connection to the wrong location id',
-        app.instance.locationId,
-        locationId
-      )
+      return logger.warn('got a connection to the wrong location id', app.instance.locationId, locationId)
     if (channelId && app.instance.channelId !== channelId)
-      return logger.warn(
-        '[loadGameserver]: got a connection to the wrong channel id',
-        app.instance.channelId,
-        channelId
-      )
+      return logger.warn('got a connection to the wrong channel id', app.instance.channelId, channelId)
   }
 
   /**

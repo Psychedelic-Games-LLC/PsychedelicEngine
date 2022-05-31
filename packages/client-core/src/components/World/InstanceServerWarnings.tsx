@@ -28,7 +28,7 @@ const initialModalValues: WarningRetryModalProps = {
 
 enum WarningModalTypes {
   INDEXED_DB_NOT_SUPPORTED,
-  NO_GAME_SERVER_PROVISIONED,
+  NO_INSTANCE_SERVER_PROVISIONED,
   INSTANCE_DISCONNECTED,
   USER_KICKED,
   INVALID_LOCATION,
@@ -65,8 +65,8 @@ const InstanceServerWarnings = () => {
       matches(action)
         .when(NetworkConnectionService.actions.noWorldServersAvailable.matches, ({ instanceId }) => {
           setErroredInstanceId(instanceId)
-          updateWarningModal(WarningModalTypes.NO_GAME_SERVER_PROVISIONED)
-          setCurrentError(WarningModalTypes.NO_GAME_SERVER_PROVISIONED)
+          updateWarningModal(WarningModalTypes.NO_INSTANCE_SERVER_PROVISIONED)
+          setCurrentError(WarningModalTypes.NO_INSTANCE_SERVER_PROVISIONED)
         })
         .when(WEBGL.EVENTS.webglDisconnected.matches, () => {
           updateWarningModal(WarningModalTypes.INSTANCE_WEBGL_DISCONNECTED)
@@ -129,7 +129,7 @@ const InstanceServerWarnings = () => {
         break
       }
 
-      case WarningModalTypes.NO_GAME_SERVER_PROVISIONED: {
+      case WarningModalTypes.NO_INSTANCE_SERVER_PROVISIONED: {
         const currentLocation = locationState.currentLocation.location.value
         setModalValues({
           open: true,

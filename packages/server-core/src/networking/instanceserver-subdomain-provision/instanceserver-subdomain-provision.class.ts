@@ -7,7 +7,7 @@ import { Application } from '../../../declarations'
 export type InstanceserverSubdomainProvisionDataType = InstanceserverSubdomainProvisionInterface
 
 /**
- * A class for Game server domain provision  service
+ * A class for instance server domain provision  service
  *
  * @author Vyacheslav Solovjov
  */

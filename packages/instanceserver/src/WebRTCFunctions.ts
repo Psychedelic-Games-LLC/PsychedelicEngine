@@ -24,7 +24,7 @@ import { WebRtcTransportParams } from '@xrengine/server-core/src/types/WebRtcTra
 import { getUserIdFromSocketId } from './NetworkFunctions'
 import { SocketWebRTCServerNetwork } from './SocketWebRTCServerNetwork'
 
-const logger = multiLogger.child({ component: 'gameserver:webrtc' })
+const logger = multiLogger.child({ component: 'instanceserver:webrtc' })
 
 const toArrayBuffer = (buf): any => {
   var ab = new ArrayBuffer(buf.length)

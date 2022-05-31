@@ -289,7 +289,7 @@
       "group": "group",
       "party": "Party",
       "smsNameCharLimit": "SMS Name Character Limit",
-      "instanceServer": "GAME SERVER",
+      "instanceServer": "INSTANCE SERVER",
       "clientHost": "Client Host",
       "rtcStartPort": "rtc_start_port",
       "rtcEndPort": "rtc_end_port",
