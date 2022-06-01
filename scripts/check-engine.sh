@@ -1,6 +1,6 @@
 apiName="${RELEASE_NAME}-xrengine-api"
 clientName="${RELEASE_NAME}-xrengine-client"
-instnaceserverName="${RELEASE_NAME}-instanceserver"
+instanceserverName="${RELEASE_NAME}-instanceserver"
 
 apiCount=$(kubectl get deploy $apiName -o jsonpath='{.status.availableReplicas}')
 echo "API ready count: $apiCount"

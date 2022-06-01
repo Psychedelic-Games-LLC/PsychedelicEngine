@@ -53,9 +53,9 @@ rules:
       - fleet
       - fleets.agones.dev
       - configmap
-      - instanceservers
-      - instanceserver
-      - instanceserversets
+      - gameservers
+      - gameserver
+      - gameserversets
     verbs:
       - get
       - update
