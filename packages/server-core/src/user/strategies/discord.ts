@@ -29,7 +29,7 @@ export class DiscordStrategy extends CustomOAuthStrategy {
     )
     const identityProvider = authResult['identity-provider']
     const user = await this.app.service('user').get(entity.userId)
-    const adminCount = await (this.app.service('user') as any).Model.count({
+    const adminCount = await this.app.service('user').Model.count({
       where: {
         userRole: 'admin'
       }
@@ -53,7 +53,10 @@ export class DiscordStrategy extends CustomOAuthStrategy {
     }
     const existingEntity = await super.findEntity(profile, params)
     if (!existingEntity) return super.createEntity(profile, params)
-    else return existingEntity
+    else if (existingEntity.userId === identityProvider.userId) return existingEntity
+    else {
+      throw new Error('Another user is linked to this account')
+    }
   }
 
   async getRedirect(data: any, params: Params): Promise<string> {
@@ -71,7 +74,6 @@ export class DiscordStrategy extends CustomOAuthStrategy {
       } catch (err) {
         parsedRedirect = {}
       }
-
       const path = parsedRedirect.path
       const instanceId = parsedRedirect.instanceId
       let returned = redirectHost + `?token=${token}&type=${type}`

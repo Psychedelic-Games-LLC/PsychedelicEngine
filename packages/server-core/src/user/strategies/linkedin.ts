@@ -10,7 +10,7 @@ export class LinkedInStrategy extends CustomOAuthStrategy {
     this.app = app
   }
 
-  async getEntityData(profile: any, params: Params): Promise<any> {
+  async getEntityData(profile: any, entity: any, params: Params): Promise<any> {
     const baseData = await super.getEntityData(profile, null, {})
     const userId = params?.query ? params.query.userId : undefined
     return {
@@ -52,16 +52,17 @@ export class LinkedInStrategy extends CustomOAuthStrategy {
     }
     const existingEntity = await super.findEntity(profile, params)
     if (!existingEntity) return super.createEntity(profile, params)
-    else return existingEntity
+    else if (existingEntity.userId === identityProvider.userId) return existingEntity
+    else {
+      throw new Error('Another user is linked to this account')
+    }
   }
 
   async getRedirect(data: any, params: Params): Promise<string> {
     const redirectHost = config.authentication.callback.linkedin
     const type = params?.query?.userId ? 'connection' : 'login'
-
     if (Object.getPrototypeOf(data) === Error.prototype) {
       const err = data.message as string
-
       return redirectHost + `?error=${err}`
     } else {
       const token = data.accessToken as string
@@ -77,10 +78,8 @@ export class LinkedInStrategy extends CustomOAuthStrategy {
       let returned = redirectHost + `?token=${token}&type=${type}`
       if (path != null) returned = returned.concat(`&path=${path}`)
       if (instanceId != null) returned = returned.concat(`&instanceId=${instanceId}`)
-
       return returned
     }
   }
 }
-
 export default LinkedInStrategy

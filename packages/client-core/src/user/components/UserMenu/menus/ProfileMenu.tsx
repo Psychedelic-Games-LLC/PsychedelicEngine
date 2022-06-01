@@ -599,7 +599,6 @@ const ProfileMenu = (props: Props): JSX.Element => {
               </section>
             )}
 
-            {userRole === 'guest' && enableSocial && (
             {enableSocial && (
               <section className={styles.socialBlock}>
                 { selfUser?.userRole.value === 'guest' && <Typography variant="h3" className={styles.textBlock}>

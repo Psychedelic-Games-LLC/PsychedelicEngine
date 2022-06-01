@@ -52,7 +52,10 @@ export class TwitterStrategy extends CustomOAuthStrategy {
     }
     const existingEntity = await super.findEntity(profile, params)
     if (!existingEntity) return super.createEntity(profile, params)
-    else return existingEntity
+    else if (existingEntity.userId === identityProvider.userId) return existingEntity
+    else {
+      throw new Error('Another user is linked to this account')
+    }
   }
 
   async getRedirect(data: any, params: Params): Promise<string> {
@@ -70,7 +73,6 @@ export class TwitterStrategy extends CustomOAuthStrategy {
       } catch (err) {
         parsedRedirect = {}
       }
-
       const path = parsedRedirect.path
       const instanceId = parsedRedirect.instanceId
       let returned = redirectHost + `?token=${token}&type=${type}`

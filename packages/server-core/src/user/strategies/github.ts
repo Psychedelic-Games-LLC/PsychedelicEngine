@@ -52,12 +52,14 @@ export class GithubStrategy extends CustomOAuthStrategy {
     }
     const existingEntity = await super.findEntity(profile, params)
     if (!existingEntity) return super.createEntity(profile, params)
-    else return existingEntity
+    else if (existingEntity.userId === identityProvider.userId) return existingEntity
+    else {
+      throw new Error('Another user is linked to this account')
+    }
   }
 
   async getRedirect(data: any, params: Params): Promise<string> {
     const redirectHost = config.authentication.callback.github
-
     const type = params?.query?.userId ? 'connection' : 'login'
     if (Object.getPrototypeOf(data) === Error.prototype) {
       const err = data.message as string

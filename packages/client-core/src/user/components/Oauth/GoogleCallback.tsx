@@ -37,7 +37,6 @@ const GoogleCallbackComponent = (props): JSX.Element => {
   }, [])
 
   function redirectToRoot () {
-    console.log('redirectToRoot')
     window.location.href = '/'
   }
 

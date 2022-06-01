@@ -1,9 +1,10 @@
 .oauthError {
+  pointer-events: auto;
   color: black;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 25% 0;
+  padding: 25% 0;
   max-width: 100%;
 
   .title {
