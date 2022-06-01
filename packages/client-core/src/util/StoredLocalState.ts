@@ -26,6 +26,7 @@ store.receptors.push((action: StoredLocalActionType): void => {
   state.batch((s) => {
     switch (action.type) {
       case 'STORE_LOCAL':
+        console.log('ST')
         s.merge(action.newState)
         localStorage.setItem(
           globalThis.process.env['VITE_LOCAL_STORAGE_KEY'] || 'xrengine-client-store-key-v1',

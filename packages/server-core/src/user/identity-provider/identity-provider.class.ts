@@ -219,9 +219,7 @@ export class IdentityProvider<T = IdentityProviderInterface> extends Service<T> 
         })
       }
 
-      const authService = new AuthenticationService(this.app, 'authentication')
-      // this.app.service('authentication')
-      result.accessToken = await authService.createAccessToken({}, { subject: result.id.toString() })
+      result.accessToken = await this.app.service('authentication').createAccessToken({}, { subject: result.id.toString() })
     } else if (isDev && type === 'admin') {
       // in dev mode, add all scopes to the first user made an admin
 
@@ -229,9 +227,7 @@ export class IdentityProvider<T = IdentityProviderInterface> extends Service<T> 
         await this.app.service('scope').create({ userId: userId, type })
       }
 
-      const authService = new AuthenticationService(this.app, 'authentication')
-      // this.app.service('authentication')
-      result.accessToken = await authService.createAccessToken({}, { subject: result.id.toString() })
+      result.accessToken = await this.app.service('authentication').createAccessToken({}, { subject: result.id.toString() })
     }
     return result
   }

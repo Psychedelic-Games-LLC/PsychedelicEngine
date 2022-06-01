@@ -163,6 +163,7 @@ export const AuthService = {
       let accessToken =
         forceClientAuthReset !== true && authData && authData.authUser ? authData.authUser.accessToken : undefined
 
+      console.log('accessToken', accessToken)
       if (forceClientAuthReset === true) await (client as any).authentication.reset()
       if (accessToken == null || accessToken.length === 0) {
         const newProvider = await client.service('identity-provider').create({
@@ -335,6 +336,46 @@ export const AuthService = {
     window.location.href = `${serverHost}/oauth/${service}?feathers_token=${token}&redirect=${JSON.stringify(
       redirectObject
     )}`
+  },
+  removeUserOAuth: async (service: string) => {
+    const dispatch = useDispatch()
+    console.log('remove user oauth', service)
+    const ipResult = await (client as any).service('identity-provider').find()
+    console.log('ip', ipResult)
+    const ipToRemove = ipResult.data.find(ip => ip.type === service)
+    console.log('ipToRemove', ipToRemove)
+    if (ipToRemove) {
+      if (ipResult.total === 1) {
+        console.log('show last warning modal')
+        await (client as any).service('identity-provider').remove(ipToRemove.id)
+        await AuthService.logoutUser()
+      } else {
+        const otherIp = ipResult.data.find(ip => ip.type !== service)
+        console.log('other IP to authenticate with', otherIp)
+        const newToken = await (client as any).service('generate-token').create({
+          type: otherIp.type,
+          token: otherIp.token
+        })
+
+        console.log('newToken', newToken)
+        if (newToken) {
+          dispatch(AuthAction.actionProcessing(true))
+          await (client as any).authentication.setAccessToken(newToken as string)
+
+          console.log('client after access token changed', client)
+          const res = await (client as any).reAuthenticate()
+
+          console.log('res from reauthenticate', res, client)
+          const authUser = resolveAuthUser(res)
+
+          console.log('authUser', authUser)
+          dispatch(AuthAction.loginUserSuccess(authUser))
+          await AuthService.loadUserData(authUser.identityProvider.userId)
+          dispatch(AuthAction.actionProcessing(false))
+          await (client as any).service('identity-provider').remove(ipToRemove.id)
+        }
+      }
+    }
   },
   loginUserByJwt: async (accessToken: string, redirectSuccess: string, redirectError: string) => {
     const dispatch = useDispatch()

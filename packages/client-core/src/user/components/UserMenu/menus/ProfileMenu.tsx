@@ -253,6 +253,10 @@ const ProfileMenu = (props: Props): JSX.Element => {
     AuthService.loginUserByOAuth(e.currentTarget.id, location)
   }
 
+  const handleRemoveOAuthServiceClick = (e) => {
+    AuthService.removeUserOAuth(e.currentTarget.id)
+  }
+
   const handleLogout = async (e) => {
     if (changeActiveMenu != null) changeActiveMenu(null)
     else if (setProfileMenuOpen != null) setProfileMenuOpen(false)
@@ -344,7 +348,6 @@ const ProfileMenu = (props: Props): JSX.Element => {
 
   const enableConnect = authState?.emailMagicLink || authState?.smsMagicLink
 
-  console.log(Object.values(oauthConnectedState), Object.values(oauthConnectedState).indexOf(false))
   return (
     <div className={styles.menuPanel + (props.className ? ' ' + props.className : '')}>
       <section className={styles.profilePanel}>
@@ -637,6 +640,41 @@ const ProfileMenu = (props: Props): JSX.Element => {
                     <a href="#" id="github" onClick={handleOAuthServiceClick}>
                       <GitHub />
                     </a>
+                  )}
+                </div>
+                { selfUser?.userRole.value !== 'guest' && addMoreSocial && <Typography variant="h3" className={styles.textBlock}>
+                  {t('user:usermenu.profile.removeSocial')}
+                </Typography> }
+                <div className={styles.socialContainer}>
+                  {authState?.discord && oauthConnectedState.discord && (
+                      <a href="#" id="discord" onClick={handleRemoveOAuthServiceClick}>
+                        <DiscordIcon width="40" height="40" viewBox="0 0 40 40" />
+                      </a>
+                  )}
+                  {authState?.google && oauthConnectedState.google && (
+                      <a href="#" id="google" onClick={handleRemoveOAuthServiceClick}>
+                        <GoogleIcon width="40" height="40" viewBox="0 0 40 40" />
+                      </a>
+                  )}
+                  {authState?.facebook && oauthConnectedState.facebook && (
+                      <a href="#" id="facebook" onClick={handleRemoveOAuthServiceClick}>
+                        <FacebookIcon width="40" height="40" viewBox="0 0 40 40" />
+                      </a>
+                  )}
+                  {authState?.linkedin && oauthConnectedState.linkedin && (
+                      <a href="#" id="linkedin" onClick={handleRemoveOAuthServiceClick}>
+                        <LinkedInIcon width="40" height="40" viewBox="0 0 40 40" />
+                      </a>
+                  )}
+                  {authState?.twitter && oauthConnectedState.twitter && (
+                      <a href="#" id="twitter" onClick={handleRemoveOAuthServiceClick}>
+                        <TwitterIcon width="40" height="40" viewBox="0 0 40 40" />
+                      </a>
+                  )}
+                  {authState?.github && oauthConnectedState.github && (
+                      <a href="#" id="github" onClick={handleRemoveOAuthServiceClick}>
+                        <GitHub />
+                      </a>
                   )}
                 </div>
                 {  selfUser?.userRole.value === 'guest' && <Typography variant="h4" className={styles.smallTextBlock}>
