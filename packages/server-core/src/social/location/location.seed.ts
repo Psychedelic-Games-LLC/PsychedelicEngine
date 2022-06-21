@@ -37,6 +37,17 @@ export const locationSeed = {
         (template) => template.locationId === '98cbcc30-fd2d-11ea-bc7c-cd4cac9a8d63'
       ),
       isLobby: false
+    } as Location,
+    {
+      id: '98cbcc30-fd2d-11ea-bc7c-cd4cac9a8d6f',
+      name: 'Basketball',
+      slugifiedName: 'basketball',
+      maxUsersPerInstance: 30,
+      sceneId: 'default-project/basketball-demo',
+      location_settings: locationSettingsSeed.templates.find(
+        (template) => template.locationId === '98cbcc30-fd2d-11ea-bc7c-cd4cac9a8d6f'
+      ),
+      isLobby: false
     } as Location
   ]
 }
