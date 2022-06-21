@@ -3,6 +3,7 @@ import { TypedArray } from 'bitecs'
 import { NetworkId } from '@xrengine/common/src/interfaces/NetworkId'
 import { UserId } from '@xrengine/common/src/interfaces/UserId'
 
+import { isClient } from '../../common/functions/isClient'
 import { Entity } from '../../ecs/classes/Entity'
 import { World } from '../../ecs/classes/World'
 import { addComponent, getComponent, hasComponent } from '../../ecs/functions/ComponentFunctions'
@@ -280,7 +281,14 @@ export const createDataReader = () => {
   return (world: World, packet: ArrayBuffer) => {
     const view = createViewCursor(packet)
     const userIndex = readMetadata(view, world)
-    const fromUserId = world.userIndexToUserId.get(userIndex)
+    let fromUserId = world.userIndexToUserId.get(userIndex)
+    if (isClient && !fromUserId) {
+      // console.log('ignore message from', userIndex)
+      if (userIndex === 0) {
+        // assume it's from server?
+        fromUserId = world.worldNetwork.hostId
+      }
+    }
     if (fromUserId) readEntities(view, world, packet.byteLength, fromUserId)
   }
 }

@@ -218,6 +218,10 @@ export const initializeSceneSystems = async () => {
       systemModulePromise: import('./avatar/AvatarSystem')
     },
     {
+      type: SystemUpdateType.FIXED,
+      systemModulePromise: import('./avatar/AvatarControllerSystem')
+    },
+    {
       type: SystemUpdateType.FIXED_LATE,
       systemModulePromise: import('./interaction/systems/EquippableSystem')
     },
@@ -248,10 +252,10 @@ export const initializeSceneSystems = async () => {
         type: SystemUpdateType.FIXED,
         systemModulePromise: import('./avatar/AvatarTeleportSystem')
       },
-      {
-        type: SystemUpdateType.FIXED,
-        systemModulePromise: import('./avatar/AvatarControllerSystem')
-      },
+      // {
+      //   type: SystemUpdateType.FIXED,
+      //   systemModulePromise: import('./avatar/AvatarControllerSystem')
+      // },
       {
         type: SystemUpdateType.PRE_RENDER,
         systemModulePromise: import('./interaction/systems/InteractiveSystem')
