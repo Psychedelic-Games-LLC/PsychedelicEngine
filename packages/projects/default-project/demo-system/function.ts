@@ -44,6 +44,8 @@ const ballMaterial = new MeshStandardMaterial({ color: '#ca4f38' })
 const ballGeometry = new SphereBufferGeometry(0.12, 16, 12)
 const ballMesh = new Mesh(ballGeometry, ballMaterial)
 
+const forward = new Vector3(0, 0, 1)
+
 export function addBallComponents(entity: Entity, server: boolean) {
   const world = Engine.instance.currentWorld
 
@@ -204,4 +206,8 @@ export function updateRoamingNpcs(entity, deltaSeconds) {
 
   const controller = getComponent(entity, AvatarControllerComponent)
   controller.localMovementDirection.set(randomNumber(-1, 1), 0, randomNumber(-1, 1)).normalize()
+  // controller.isWalking = controller.localMovementDirection.length() < 0.5
+  controller.isWalking = Math.random() < 0.5
+
+  transform.rotation.setFromUnitVectors(forward, controller.localMovementDirection)
 }
