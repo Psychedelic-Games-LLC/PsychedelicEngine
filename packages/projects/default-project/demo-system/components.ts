@@ -1,6 +1,7 @@
 import { Vector3 } from 'three'
 
 import { createMappedComponent } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
+import { AvatarProps } from '@xrengine/engine/src/networking/interfaces/WorldState'
 
 export type DemoBallComponentType = {
   state: 'player-bouncing' | 'bouncing' | 'fired'
@@ -18,7 +19,7 @@ export type DemoBallShotComponentType = {
 export const DemoBallShotComponent = createMappedComponent<DemoBallShotComponentType>('DemoBallShotComponent')
 
 export type TimedBounceComponentType = {
-  timer?: number
+  timer: number
   interval: number
 }
 
@@ -31,5 +32,8 @@ export type TimedRoamingComponentType = {
 
 export const TimedRoamingComponent = createMappedComponent<TimedRoamingComponentType>('TimedRoamingComponent')
 
-export const NetworkedNpcComponentTag = createMappedComponent('NetworkedNpcComponentTag')
+export type NetworkedNpcComponentType = {
+  avatarDetails: AvatarProps
+}
+export const NetworkedNpcComponent = createMappedComponent<NetworkedNpcComponentType>('NetworkedNpcComponent')
 export const NetworkedBallComponentTag = createMappedComponent('NetworkedBallComponentTag')

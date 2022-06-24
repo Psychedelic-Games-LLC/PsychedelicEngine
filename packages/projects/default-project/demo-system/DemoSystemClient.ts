@@ -1,59 +1,31 @@
-import { Group, Material, Mesh, MeshStandardMaterial, Quaternion, SphereBufferGeometry, Vector3 } from 'three'
+import { Mesh, MeshStandardMaterial, Object3D, Quaternion, SphereBufferGeometry, Vector3 } from 'three'
 
-import { NetworkId } from '@xrengine/common/src/interfaces/NetworkId'
-import { AvatarInputSchema } from '@xrengine/engine/src/avatar/AvatarInputSchema'
 import { AvatarComponent } from '@xrengine/engine/src/avatar/components/AvatarComponent'
-import { LifecycleValue } from '@xrengine/engine/src/common/enums/LifecycleValue'
-import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
-import { Entity } from '@xrengine/engine/src/ecs/classes/Entity'
 import { World } from '@xrengine/engine/src/ecs/classes/World'
 import {
   addComponent,
-  createMappedComponent,
   defineQuery,
   getComponent,
-  hasComponent,
   removeComponent
 } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
 import { createEntity } from '@xrengine/engine/src/ecs/functions/EntityFunctions'
-import { InputValue } from '@xrengine/engine/src/input/interfaces/InputValue'
-import { InputAlias } from '@xrengine/engine/src/input/types/InputAlias'
-import { NetworkObjectAuthorityTag } from '@xrengine/engine/src/networking/components/NetworkObjectAuthorityTag'
-import { NetworkObjectComponent } from '@xrengine/engine/src/networking/components/NetworkObjectComponent'
-import { WorldNetworkAction } from '@xrengine/engine/src/networking/functions/WorldNetworkAction'
-import { networkTransformsQuery } from '@xrengine/engine/src/networking/systems/OutgoingNetworkSystem'
 import { VelocityComponent } from '@xrengine/engine/src/physics/components/VelocityComponent'
-import { CollisionGroups } from '@xrengine/engine/src/physics/enums/CollisionGroups'
-import {
-  boxDynamicConfig,
-  generatePhysicsObject
-} from '@xrengine/engine/src/physics/functions/physicsObjectDebugFunctions'
-import { BodyType, ColliderTypes } from '@xrengine/engine/src/physics/types/PhysicsTypes'
-import { accessEngineRendererState, EngineRendererAction } from '@xrengine/engine/src/renderer/EngineRendererState'
-import { AssetComponent, AssetLoadedComponent } from '@xrengine/engine/src/scene/components/AssetComponent'
 import { ModelComponent } from '@xrengine/engine/src/scene/components/ModelComponent'
 import { NameComponent } from '@xrengine/engine/src/scene/components/NameComponent'
 import { Object3DComponent } from '@xrengine/engine/src/scene/components/Object3DComponent'
 import { TriggerVolumeComponent } from '@xrengine/engine/src/scene/components/TriggerVolumeComponent'
 import { VisibleComponent } from '@xrengine/engine/src/scene/components/VisibleComponent'
 import { TransformComponent } from '@xrengine/engine/src/transform/components/TransformComponent'
-import { createActionQueue, dispatchAction } from '@xrengine/hyperflux'
+import { createActionQueue } from '@xrengine/hyperflux'
 
-import { TournamentAction } from '../tournament/receptor/action'
-import { BasketballClientAction } from './BasketballClientAction'
 import { BasketballServerAction } from './BasketballServerAction'
-import { DemoBallComponent, DemoBallShotComponent, NetworkedNpcComponentTag } from './components'
-import { addBallComponents, addNpc } from './function'
+import { bindKeyboardMap } from './bindKeyboard'
+import { changeNpcAvatarReceptor, spawnBallReceptor, spawnNpcReceptor, switchAvatarReceptor } from './client-receptors'
+import { DemoBallComponent, DemoBallShotComponent, NetworkedNpcComponent } from './components'
+import { BALL_PLAYER_BOUNCE_DISTANCE, ballMesh } from './constants'
+import { positionBallForThrow } from './function'
 
 //import { AssetLoader } from '@xrengine/engine/src/assets/classes/AssetLoader'
-
-const ballMaterial = new MeshStandardMaterial({ color: '#ca4f38' })
-const ballGeometry = new SphereBufferGeometry(0.15, 16, 12)
-const ballMesh = new Mesh(ballGeometry, ballMaterial)
-
-const BALL_PLAYER_BOUNCE_DISTANCE = 0.35
-const BALL_BOUNCE_SPEED = 1
-const BALL_FLY_SPEED = 1
 
 function positionBallBesidePlayer(playerEntity, ballEntity) {
   const avatar = getComponent(playerEntity, AvatarComponent)
@@ -72,70 +44,20 @@ function positionBallBesidePlayer(playerEntity, ballEntity) {
   ballPosition.add(avatarTransform.position)
 }
 
-function positionBallForThrow(playerEntity, ballEntity) {
-  const avatar = getComponent(playerEntity, AvatarComponent)
-  const avatarTransform = getComponent(playerEntity, TransformComponent)
-  const ballTransform = getComponent(ballEntity, TransformComponent)
-
-  const BALL_PLAYER_BOUNCE_HEIGHT = avatar.avatarHeight * 0.8
-
-  const ballPosition = ballTransform.position
-  ballPosition.set(0, BALL_PLAYER_BOUNCE_HEIGHT, BALL_PLAYER_BOUNCE_DISTANCE)
-  ballPosition.applyQuaternion(avatarTransform.rotation)
-  ballPosition.add(avatarTransform.position)
-}
-
-function spawnBall(world, playerEntity) {
+function spawnBall(object: Object3D | null = null) {
+  const ballObject = object?.clone() ?? ballMesh.clone()
   // spawn ball
-  const ballEntity = createEntity(world)
+  const ballEntity = createEntity()
   addComponent(ballEntity, DemoBallComponent, { state: 'player-bouncing', progress: 0 })
-  addComponent(ballEntity, Object3DComponent, { value: ballMesh.clone() })
+  addComponent(ballEntity, Object3DComponent, { value: ballObject })
   addComponent(ballEntity, TransformComponent, {
     position: new Vector3(),
     rotation: new Quaternion(),
     scale: new Vector3(1, 1, 1)
   })
   addComponent(ballEntity, VisibleComponent, {})
-}
 
-function spawnBallReceptor(
-  action: ReturnType<typeof BasketballServerAction.spawnBallNetworkObject>,
-  ballModelEntity: Entity
-) {
-  const entity = createEntity()
-  addComponent(entity, NetworkObjectComponent, {
-    ownerId: action.$from,
-    networkId: action.networkId,
-    prefab: 'zzz',
-    parameters: {}
-  })
-
-  addBallComponents(entity, false)
-
-  const { value: ballObject } = getComponent(ballModelEntity, Object3DComponent)
-  console.log(ballObject.children[1])
-  // @ts-ignore
-  ;((ballObject.children[1] as Mesh).material as MeshStandardMaterial).color.setHex(0xca4f38)
-  // const ball = new Group()
-  // ball.add(ballObject.children[1].clone())
-
-  addComponent(entity, Object3DComponent, {
-    value: ballObject.clone(true)
-  })
-}
-
-function spawnNpcReceptor(action: ReturnType<typeof BasketballServerAction.spawnNpcNetworkObject>, modelURL) {
-  // addComponent(entity, NetworkObjectComponent, {
-  //   ownerId: action.$from,
-  //   networkId: action.networkId,
-  //   prefab: 'zzz',
-  //   parameters: {}
-  // })
-
-  addNpc(action.name, action.networkId, modelURL).then((npcEntity) => {
-    const network = getComponent(npcEntity, NetworkObjectComponent)
-    network.ownerId = action.$from
-  })
+  return ballEntity
 }
 
 const triggerVolumesQuery = defineQuery([TriggerVolumeComponent, TransformComponent])
@@ -143,13 +65,15 @@ const playerQuery = defineQuery([AvatarComponent, TransformComponent])
 const ballQuery = defineQuery([DemoBallComponent, Object3DComponent])
 const firedBallQuery = defineQuery([DemoBallShotComponent, Object3DComponent])
 const objectsQuery = defineQuery([Object3DComponent])
-const namedObjectsQuery = defineQuery([NameComponent, Object3DComponent])
-const npcObjectsQuery = defineQuery([NetworkedNpcComponentTag, TransformComponent, VelocityComponent])
+export const namedObjectsQuery = defineQuery([NameComponent, Object3DComponent])
+const npcObjectsQuery = defineQuery([NetworkedNpcComponent, TransformComponent, VelocityComponent])
 
 export default async function DemoSystemClient(world: World) {
   // await Promise.all([AssetLoader.loadAsync('/ball.fbx')])
   const spawnballQueue = createActionQueue(BasketballServerAction.spawnBallNetworkObject.matches)
   const spawnNpcQueue = createActionQueue(BasketballServerAction.spawnNpcNetworkObject.matches)
+  const switchAvatarQueue = createActionQueue(BasketballServerAction.switchAvatarEntity.matches)
+  const changeNpcAvatarQueue = createActionQueue(BasketballServerAction.changeNpcAvatar.matches)
   let throwRequested = false
 
   // console.log('---- WEBSOCKET ADD ----')
@@ -167,60 +91,7 @@ export default async function DemoSystemClient(world: World) {
   // };
   // console.log("WEBSOCKET", websocket)
 
-  AvatarInputSchema.inputMap.set('KeyI', 9998)
-  AvatarInputSchema.behaviorMap.set(9998, (entity: Entity, inputKey: InputAlias, inputValue: InputValue): void => {
-    if (inputValue.lifecycleState !== LifecycleValue.Ended) return
-
-    console.log('all network objects')
-    networkTransformsQuery().forEach((e) => {
-      const nat = hasComponent(e, NetworkObjectAuthorityTag)
-      const name = getComponent(e, NameComponent)
-      const nc = getComponent(e, NetworkObjectComponent)
-      const tc = getComponent(e, TransformComponent)
-      console.log(
-        'nc',
-        name?.name,
-        nat,
-        nc.networkId,
-        tc?.position.toArray(),
-        tc?.rotation.toArray(),
-        tc?.scale.toArray()
-      )
-
-      dispatchAction(EngineRendererAction.setPhysicsDebug(!accessEngineRendererState().physicsDebugEnable.value))
-    })
-  })
-
-  AvatarInputSchema.inputMap.set('KeyQ', 9999)
-  AvatarInputSchema.behaviorMap.set(9999, (entity: Entity, inputKey: InputAlias, inputValue: InputValue): void => {
-    if (inputValue.lifecycleState !== LifecycleValue.Ended) return
-    console.log('~~~ !!! ~~~ Throw ball!')
-    // console.log('server id?', Engine.instance.currentWorld.worldNetwork.hostId)
-    //
-    // console.log('world.entityTree', world.entityTree)
-    //
-    // console.log('namedEntities()', world.namedEntities)
-
-    // // throwRequested = true
-    dispatchAction(
-      BasketballClientAction.throw({
-        $to: Engine.instance.currentWorld.worldNetwork.hostId
-      }),
-      [Engine.instance.currentWorld.worldNetwork.hostId]
-    )
-  })
-
-  AvatarInputSchema.inputMap.set('KeyR', 10000)
-  AvatarInputSchema.behaviorMap.set(10000, (entity: Entity, inputKey: InputAlias, inputValue: InputValue): void => {
-    if (inputValue.lifecycleState !== LifecycleValue.Ended) return
-    console.log('~~~ !!! ~~~ Add NPC!')
-    dispatchAction(
-      BasketballClientAction.spawnNPC({
-        $to: Engine.instance.currentWorld.worldNetwork.hostId
-      }),
-      [Engine.instance.currentWorld.worldNetwork.hostId]
-    )
-  })
+  bindKeyboardMap()
 
   // playerQuery.enter(world) always returns player. not just on enter
   let ballIsSpawned = false
@@ -254,21 +125,26 @@ export default async function DemoSystemClient(world: World) {
     //   socketTimer = socketInterval
     // }
 
+    for (const action of switchAvatarQueue()) {
+      switchAvatarReceptor(action)
+    }
+
+    for (const action of changeNpcAvatarQueue()) {
+      changeNpcAvatarReceptor(action)
+    }
+
     for (const spawnballQueueElement of spawnballQueue()) {
       const ballModelEntity = namedObjectsQuery().find((e) => {
         const { name } = getComponent(e, NameComponent)
         return name === 'BallModel'
       })
+      if (!ballModelEntity) {
+        console.error('failed to get ball model entity')
+        return
+      }
       spawnBallReceptor(spawnballQueueElement, ballModelEntity)
     }
-    for (const action of spawnNpcQueue()) {
-      const playerModelEntity = namedObjectsQuery().find((e) => {
-        const { name } = getComponent(e, NameComponent)
-        return name === 'mixamo model'
-      })
-      const { src } = getComponent(playerModelEntity, ModelComponent)
-      spawnNpcReceptor(action, src)
-    }
+    for (const action of spawnNpcQueue()) spawnNpcReceptor(action)
 
     const hoopEntity = triggerVolumesQuery(world)[0]
     const playerEntity = playerQuery(world)[0]

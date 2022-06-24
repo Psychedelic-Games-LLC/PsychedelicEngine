@@ -28,23 +28,18 @@ import { LocalInputTagComponent } from '@xrengine/engine/src/input/components/Lo
 import { NetworkObjectAuthorityTag } from '@xrengine/engine/src/networking/components/NetworkObjectAuthorityTag'
 import { NetworkObjectComponent } from '@xrengine/engine/src/networking/components/NetworkObjectComponent'
 import { WorldNetworkAction } from '@xrengine/engine/src/networking/functions/WorldNetworkAction'
+import { AvatarProps } from '@xrengine/engine/src/networking/interfaces/WorldState'
 import { ColliderComponent } from '@xrengine/engine/src/physics/components/ColliderComponent'
 import { CollisionComponent } from '@xrengine/engine/src/physics/components/CollisionComponent'
 import { VelocityComponent } from '@xrengine/engine/src/physics/components/VelocityComponent'
 import { CollisionGroups } from '@xrengine/engine/src/physics/enums/CollisionGroups'
 import { BodyType } from '@xrengine/engine/src/physics/types/PhysicsTypes'
-import { Object3DComponent } from '@xrengine/engine/src/scene/components/Object3DComponent'
 import { ShadowComponent } from '@xrengine/engine/src/scene/components/ShadowComponent'
 import { VisibleComponent } from '@xrengine/engine/src/scene/components/VisibleComponent'
 import { TransformComponent } from '@xrengine/engine/src/transform/components/TransformComponent'
 
-import { NetworkedBallComponentTag, NetworkedNpcComponentTag, TimedRoamingComponent } from './components'
-
-const ballMaterial = new MeshStandardMaterial({ color: '#ca4f38' })
-const ballGeometry = new SphereBufferGeometry(0.12, 16, 12)
-const ballMesh = new Mesh(ballGeometry, ballMaterial)
-
-const forward = new Vector3(0, 0, 1)
+import { NetworkedBallComponentTag, NetworkedNpcComponent, TimedRoamingComponent } from './components'
+import { BALL_PLAYER_BOUNCE_DISTANCE, FORWARD } from './constants'
 
 export function addBallComponents(entity: Entity, server: boolean) {
   const world = Engine.instance.currentWorld
@@ -54,7 +49,7 @@ export function addBallComponents(entity: Entity, server: boolean) {
 
     const shape = world.physics.createShape(
       new PhysX.PxSphereGeometry(0.12),
-      world.physics.physics.createMaterial(1, 1, 0.5),
+      world.physics.physics.createMaterial(1, 1, 0.8),
       {
         collisionLayer: CollisionGroups.Default,
         collisionMask:
@@ -120,7 +115,7 @@ export function addBallComponents(entity: Entity, server: boolean) {
   // })
 }
 
-export async function addNpc(key: string, networkId, modelURL = null): Promise<Entity> {
+export async function addNpc(key: string, networkId, avatarDetails?: AvatarProps): Promise<Entity> {
   const position = randomVector3(3)
   position.y = 0
   console.log('addNpc', key, networkId, position.toArray())
@@ -144,14 +139,15 @@ export async function addNpc(key: string, networkId, modelURL = null): Promise<E
 
   createAvatar(spawnAction)
 
-  addComponent(entity, NetworkedNpcComponentTag, {})
+  addComponent(entity, NetworkedNpcComponent, {
+    avatarDetails
+  })
   if (isClient) {
     addComponent(entity, AudioTagComponent, {})
     addComponent(entity, ShadowComponent, { receiveShadow: true, castShadow: true })
 
-    if (modelURL) {
-      const avatarModel = await loadAvatarModelAsset(modelURL)
-      setupAvatarForUser(entity, avatarModel)
+    if (avatarDetails) {
+      loadAvatarForUser(entity, avatarDetails.avatarURL)
     }
     // if (spawnAction.$from === Engine.instance.userId) {
     //     addComponent(entity, LocalInputTagComponent, {})
@@ -165,6 +161,11 @@ export async function addNpc(key: string, networkId, modelURL = null): Promise<E
   return entity
 }
 
+export const loadAvatarForUser = async (entity: Entity, avatarURL: string) => {
+  const avatarModel = await loadAvatarModelAsset(avatarURL)
+  setupAvatarForUser(entity, avatarModel)
+}
+
 export const setupAvatarForUser = (entity: Entity, model: Object3D) => {
   const avatar = getComponent(entity, AvatarComponent)
   avatar.modelContainer.clear()
@@ -172,18 +173,21 @@ export const setupAvatarForUser = (entity: Entity, model: Object3D) => {
   setupAvatarModel(entity)(model)
   setupAvatarHeight(entity, model)
 
-  const avatarMaterials = setupAvatarMaterials(entity, model)
+  // const avatarMaterials = setupAvatarMaterials(entity, model)
 
   // Materials only load on the client currently
-  if (isClient) {
-    loadGrowingEffectObject(entity, avatarMaterials)
-  }
+  // if (isClient) {
+  //   loadGrowingEffectObject(entity, avatarMaterials)
+  // }
 
   model.children.forEach((child) => avatar.modelContainer.add(child))
 }
 
 export function updateRoamingNpcs(entity, deltaSeconds) {
   const roaming = getComponent(entity, TimedRoamingComponent)
+  if (typeof roaming.timer === 'undefined') {
+    roaming.timer = 0
+  }
   roaming.timer -= deltaSeconds
 
   const velocity = getComponent(entity, VelocityComponent)
@@ -209,5 +213,18 @@ export function updateRoamingNpcs(entity, deltaSeconds) {
   // controller.isWalking = controller.localMovementDirection.length() < 0.5
   controller.isWalking = Math.random() < 0.5
 
-  transform.rotation.setFromUnitVectors(forward, controller.localMovementDirection)
+  transform.rotation.setFromUnitVectors(FORWARD, controller.localMovementDirection)
+}
+
+export function positionBallForThrow(playerEntity, ballEntity) {
+  const avatar = getComponent(playerEntity, AvatarComponent)
+  const avatarTransform = getComponent(playerEntity, TransformComponent)
+  const ballTransform = getComponent(ballEntity, TransformComponent)
+
+  const BALL_PLAYER_BOUNCE_HEIGHT = avatar.avatarHeight * 0.8
+
+  const ballPosition = ballTransform.position
+  ballPosition.set(0, BALL_PLAYER_BOUNCE_HEIGHT, BALL_PLAYER_BOUNCE_DISTANCE)
+  ballPosition.applyQuaternion(avatarTransform.rotation)
+  ballPosition.add(avatarTransform.position)
 }

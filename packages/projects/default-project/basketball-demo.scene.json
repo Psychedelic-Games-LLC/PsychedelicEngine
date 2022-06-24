@@ -58,7 +58,7 @@
             "type": 1,
             "envMapTextureType": 0,
             "envMapSourceColor": 16777215,
-            "envMapSourceURL": "__$project$__/default-project/assets/skyboxsun25deg/",
+            "envMapSourceURL": "__$project$__/default-project/assets/skyboxsun25deg",
             "envMapIntensity": 1,
             "envMapCubemapBake": {
               "bakeType": 1,
@@ -282,7 +282,7 @@
             "position": {
               "x": -5.5,
               "y": 0,
-              "z": -1.5
+              "z": -0.3815220594406128
             },
             "rotation": {
               "x": 0,
@@ -340,14 +340,14 @@
           "props": {
             "options": {
               "SMAAEffect": {
-                "isActive": true,
+                "isActive": false,
                 "blendFunction": 13,
                 "preset": 1,
                 "edgeDetectionMode": 2,
                 "predicationMode": 0
               },
               "OutlineEffect": {
-                "isActive": true,
+                "isActive": false,
                 "blendFunction": 16,
                 "patternTexture": null,
                 "edgeStrength": 1,
@@ -384,7 +384,7 @@
                 "bokehScale": 1
               },
               "BloomEffect": {
-                "isActive": true,
+                "isActive": false,
                 "blendFunction": 16,
                 "kernelSize": 2,
                 "luminanceThreshold": 1,
@@ -425,45 +425,6 @@
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
       "index": 6,
       "name": "post processing"
-    },
-    "1B698484-C15A-4CEC-9247-03873520DF71": {
-      "components": [
-        {
-          "name": "transform",
-          "props": {
-            "position": {
-              "x": 0,
-              "y": 10,
-              "z": 0
-            },
-            "rotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "name": "visible",
-          "props": {}
-        },
-        {
-          "name": "hemisphere-light",
-          "props": {
-            "skyColor": 16777215,
-            "groundColor": 16777215,
-            "intensity": 1
-          }
-        }
-      ],
-      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 7,
-      "name": "hemisphere light"
     },
     "46BB52A2-E365-410F-BC37-5873691B48C9": {
       "components": [
@@ -506,7 +467,7 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 8,
+      "index": 7,
       "name": "directional light"
     },
     "aba78938-e9f9-48e2-9463-f1305d6d687c": {
@@ -545,7 +506,7 @@
         {
           "name": "gltf-model",
           "props": {
-            "src": "__$project$__/default-project/assets/orange.glb",
+            "src": "__$project$__/default-project/assets/basketball-court-orange.glb",
             "textureOverride": "",
             "materialOverrides": [],
             "matrixAutoUpdate": true,
@@ -595,7 +556,7 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 9,
+      "index": 8,
       "name": "court"
     },
     "8d74188e-1595-4ead-949d-59a96bae7a31": {
@@ -684,7 +645,7 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 10,
+      "index": 9,
       "name": "Model 2"
     },
     "eebb7b2f-5748-45d1-a301-e42f7312bdc4": {
@@ -693,9 +654,9 @@
           "name": "transform",
           "props": {
             "position": {
-              "x": -1,
+              "x": 0.7589162588119507,
               "y": 0,
-              "z": -11.5
+              "z": -17.04561424255371
             },
             "rotation": {
               "x": 0,
@@ -773,7 +734,7 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 11,
+      "index": 10,
       "name": "mixamo model"
     },
     "f77bf490-b48b-48d1-8ec0-f0066035e967": {
@@ -782,9 +743,9 @@
           "name": "transform",
           "props": {
             "position": {
-              "x": -5.5,
+              "x": -5.763531684875488,
               "y": 0,
-              "z": 13.5
+              "z": 11.328211784362793
             },
             "rotation": {
               "x": -3.141592653589793,
@@ -808,7 +769,7 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 12,
+      "index": 11,
       "name": "Spawn Point"
     },
     "a9cce5d3-0e46-490c-a58d-8c2cb1b61478": {
@@ -845,7 +806,7 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 13,
+      "index": 12,
       "name": "Box Collider"
     },
     "6c2d57d6-e6a1-4296-b6d3-6bdb523f24e4": {
@@ -882,66 +843,8 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 14,
+      "index": 13,
       "name": "Box Collider 2"
-    },
-    "77ae59ad-c440-4f7f-8fea-c0faf6ccbbfe": {
-      "components": [
-        {
-          "name": "transform",
-          "props": {
-            "position": {
-              "x": -5.5,
-              "y": 1.5,
-              "z": 5
-            },
-            "rotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "name": "visible",
-          "props": {}
-        },
-        {
-          "name": "cubemapbake",
-          "props": {
-            "options": {
-              "bakeType": 1,
-              "resolution": 2048,
-              "refreshMode": 0,
-              "envMapOrigin": "",
-              "boxProjection": true,
-              "bakePosition": {
-                "x": 0,
-                "y": 0,
-                "z": 0
-              },
-              "bakePositionOffset": {
-                "x": 0,
-                "y": 0,
-                "z": 0
-              },
-              "bakeScale": {
-                "x": 1,
-                "y": 1,
-                "z": 1
-              }
-            }
-          }
-        }
-      ],
-      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 15,
-      "name": "CubemapBake"
     },
     "85191f7c-7d08-4e35-aa40-263cadb6cf5f": {
       "components": [
@@ -977,7 +880,7 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 16,
+      "index": 14,
       "name": "Box Collider 3"
     },
     "2e9cd63d-e6d1-4ac1-b749-6920930f1928": {
@@ -1014,7 +917,7 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 17,
+      "index": 15,
       "name": "Box Collider 4"
     },
     "389d18a3-a2a7-4c50-9a07-901e028cc94f": {
@@ -1051,7 +954,7 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 18,
+      "index": 16,
       "name": "Box Collider 5"
     },
     "680d237e-c162-4e8d-ae36-30e4c656d20a": {
@@ -1088,7 +991,7 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 19,
+      "index": 17,
       "name": "Box Collider 6"
     },
     "085ea1b8-b4e0-48a0-975a-ad73960ad498": {
@@ -1123,7 +1026,7 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 20,
+      "index": 18,
       "name": "hoop-point"
     },
     "85c940bb-a9f3-4f28-a186-a6a37f1481cb": {
@@ -1132,9 +1035,9 @@
           "name": "transform",
           "props": {
             "position": {
-              "x": 0.20052078366279602,
-              "y": 3,
-              "z": -7.722427845001221
+              "x": 2.4896340370178223,
+              "y": 0.5185039043426514,
+              "z": -14.193998336791992
             },
             "rotation": {
               "x": 0,
@@ -1212,7 +1115,7 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 21,
+      "index": 19,
       "name": "BallModel"
     },
     "b55fd73e-8aaf-4aa0-be20-85e1cac39aa4": {
@@ -1250,8 +1153,288 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 22,
+      "index": 20,
       "name": "BallAsset"
+    },
+    "ada6fa77-45cd-4139-b03b-d9d672fac1d6": {
+      "components": [
+        {
+          "name": "transform",
+          "props": {
+            "position": {
+              "x": -8.288005828857422,
+              "y": 0,
+              "z": 13.133742332458496
+            },
+            "rotation": {
+              "x": -3.141592653589793,
+              "y": 0.031415926948973494,
+              "z": -3.141592653589793
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "name": "visible",
+          "props": {}
+        },
+        {
+          "name": "spawn-point",
+          "props": {}
+        }
+      ],
+      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
+      "index": 21,
+      "name": "Spawn Point 2"
+    },
+    "7f740756-a6cf-4e45-b5ef-39884cdc40ae": {
+      "components": [
+        {
+          "name": "transform",
+          "props": {
+            "position": {
+              "x": -3.607991933822632,
+              "y": 0,
+              "z": 12.888617515563965
+            },
+            "rotation": {
+              "x": -3.141592653589793,
+              "y": 0.031415926948973494,
+              "z": -3.141592653589793
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "name": "visible",
+          "props": {}
+        },
+        {
+          "name": "spawn-point",
+          "props": {}
+        }
+      ],
+      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
+      "index": 22,
+      "name": "Spawn Point 3"
+    },
+    "4e4ae5a1-7357-4938-af04-87e1692c80ec": {
+      "components": [
+        {
+          "name": "transform",
+          "props": {
+            "position": {
+              "x": -3.9627761840820312,
+              "y": 0,
+              "z": 15.31275749206543
+            },
+            "rotation": {
+              "x": -3.141592653589793,
+              "y": 0.031415926948973494,
+              "z": -3.141592653589793
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "name": "visible",
+          "props": {}
+        },
+        {
+          "name": "spawn-point",
+          "props": {}
+        }
+      ],
+      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
+      "index": 23,
+      "name": "Spawn Point 4"
+    },
+    "5d061fc3-8029-4ff6-b4a3-e3cfe57b87ca": {
+      "components": [
+        {
+          "name": "transform",
+          "props": {
+            "position": {
+              "x": -7.17438268661499,
+              "y": 0,
+              "z": 15.478473663330078
+            },
+            "rotation": {
+              "x": -3.141592653589793,
+              "y": 0.031415926948973494,
+              "z": -3.141592653589793
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "name": "visible",
+          "props": {}
+        },
+        {
+          "name": "spawn-point",
+          "props": {}
+        }
+      ],
+      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
+      "index": 24,
+      "name": "Spawn Point 5"
+    },
+    "98652bae-d2e5-452e-b039-9d58504ac25e": {
+      "components": [
+        {
+          "name": "transform",
+          "props": {
+            "position": {
+              "x": -2.901637554168701,
+              "y": 0,
+              "z": -2.1770005226135254
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "name": "visible",
+          "props": {}
+        },
+        {
+          "name": "spawn-point",
+          "props": {}
+        }
+      ],
+      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
+      "index": 25,
+      "name": "spawn point 2"
+    },
+    "27154a61-6c70-4fb6-ab37-6962e2edee25": {
+      "components": [
+        {
+          "name": "transform",
+          "props": {
+            "position": {
+              "x": -8.005681037902832,
+              "y": 0,
+              "z": -2.1770005226135254
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "name": "visible",
+          "props": {}
+        },
+        {
+          "name": "spawn-point",
+          "props": {}
+        }
+      ],
+      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
+      "index": 26,
+      "name": "spawn point 3"
+    },
+    "7c182301-a296-4ba1-939a-d5a90c649d0e": {
+      "components": [
+        {
+          "name": "transform",
+          "props": {
+            "position": {
+              "x": -7.594151973724365,
+              "y": 0,
+              "z": -5.027879238128662
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "name": "visible",
+          "props": {}
+        },
+        {
+          "name": "spawn-point",
+          "props": {}
+        }
+      ],
+      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
+      "index": 27,
+      "name": "spawn point 4"
+    },
+    "4af28ebb-4ca4-4620-8dec-d9e3a3dd1f12": {
+      "components": [
+        {
+          "name": "transform",
+          "props": {
+            "position": {
+              "x": -3.454622983932495,
+              "y": 0,
+              "z": -5.027879238128662
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "name": "visible",
+          "props": {}
+        },
+        {
+          "name": "spawn-point",
+          "props": {}
+        }
+      ],
+      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
+      "index": 28,
+      "name": "spawn point 5"
     }
   },
   "root": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC"
