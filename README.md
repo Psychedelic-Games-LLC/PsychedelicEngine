@@ -1,8 +1,8 @@
-# XR Engine _(xrengine)_
+# Ethereal Engine _(XREngine)_
 
-![xrengine black](https://user-images.githubusercontent.com/5104160/142821267-7e131891-0caa-496b-9cda-a82dee8a04b6.png)
+![Ethereal Engine org black on white](https://user-images.githubusercontent.com/5104160/174094172-f7b6f90b-daad-4547-8c88-bb94372cffc1.png)
 
-> Your own sandbox in the Metaverse. Take what you need, or launch the full stack.
+>  Manifest your dreams on the open social special web.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@
 
 https://user-images.githubusercontent.com/507127/142818955-51d7757f-a432-45da-8f8f-56037358ad58.mp4
 
-We ([XR Foundation](https://github.com/xrfoundation)) believe that the Metaverse, 
+We ([Ethereal Engine](https://github.com/xrfoundation)) believe that the Metaverse, 
 Web AR, VR, and XR should be easy.
 
 We want a Star Trek future where participating in immersive communication 
@@ -81,7 +81,7 @@ Best for simple self hosting, advanced editor content creation, and XRE Pack Pro
 
 ### Pre-Requisites
 
-To install XREngine locally, the following pre-reqs are required.
+To install Ethereal Engine locally, the following pre-reqs are required.
 
 * Linux (many of us develop on Ubuntu), Mac OS X, or Windows (we recommend WSL2)
 * Node.js v16 or later (we recommend installing via [`nvm`](https://github.com/nvm-sh/nvm)
@@ -138,10 +138,10 @@ you find who you need to talk to.
 
 ### [Join our Discord](https://discord.gg/xrf)  [![Discord Chat](https://img.shields.io/discord/692672143053422678.svg)](https://discord.gg/xrf)
 
-### [Sponsorship](https://opencollective.com/xrfoundation) [![Open Collective](https://opencollective.com/xrfoundation/tiers/badge.svg)](https://opencollective.com/xrfoundation)
+### [Sponsorship](https://opencollective.com/etherealengine) [![Open Collective](https://opencollective.com/etherealengine/tiers/badge.svg)](https://opencollective.com/etherealengine)
 
 ## License
-[MIT](LICENSE) - Copyright (c) 2020-2022 XRFoundation
+[MIT](LICENSE) - Copyright (c) 2020-2022 HyperConstruct
 
 
 [Release History and Author Archive](/HISTORY.md)
