@@ -8,15 +8,14 @@ import InputText from '../../common/InputText'
 
 interface Props {
   open: boolean
-  handleClose: () => void
+  onClose: () => void
 }
 
-const createUser = (props: Props) => {
-  const { open, handleClose } = props
+const CreateUserRole = ({ open, onClose }: Props) => {
   const [role, setRole] = useState('')
   const { t } = useTranslation()
 
-  const createUserRole = async () => {
+  const handleSubmit = () => {
     setRole('')
   }
 
@@ -27,16 +26,16 @@ const createUser = (props: Props) => {
   return (
     <CreateModal
       open={open}
-      handleClose={handleClose}
       text={t('admin:components.user.userRole')}
       action="Create"
-      submit={createUserRole}
+      onSubmit={handleSubmit}
+      onClose={onClose}
     >
       <DialogContent>
-        <InputText name="role" label={t('admin:components.user.role')} value={role} handleInputChange={handleChange} />
+        <InputText name="role" label={t('admin:components.user.role')} value={role} onChange={handleChange} />
       </DialogContent>
     </CreateModal>
   )
 }
 
-export default createUser
+export default CreateUserRole

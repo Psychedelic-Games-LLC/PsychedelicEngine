@@ -13,11 +13,11 @@ import {
   hasComponent,
   removeComponent
 } from '../ecs/functions/ComponentFunctions'
-import { AvatarControllerType } from '../input/enums/InputEnums'
 import { isEntityLocalClient } from '../networking/functions/isEntityLocalClient'
 import { WorldNetworkAction } from '../networking/functions/WorldNetworkAction'
 import { RaycastComponent } from '../physics/components/RaycastComponent'
 import { VelocityComponent } from '../physics/components/VelocityComponent'
+import { Object3DComponent } from '../scene/components/Object3DComponent'
 import { TransformComponent } from '../transform/components/TransformComponent'
 import { XRLGripButtonComponent, XRRGripButtonComponent } from '../xr/components/XRGripButtonComponent'
 import { XRHandsInputComponent } from '../xr/components/XRHandsInputComponent'
@@ -28,16 +28,17 @@ import { proxifyXRInputs } from '../xr/functions/WebXRFunctions'
 import { AvatarAnimationComponent } from './components/AvatarAnimationComponent'
 import { AvatarComponent } from './components/AvatarComponent'
 import { AvatarControllerComponent } from './components/AvatarControllerComponent'
+import { AvatarEffectComponent } from './components/AvatarEffectComponent'
 import { AvatarHandsIKComponent } from './components/AvatarHandsIKComponent'
+import { AvatarHeadDecapComponent } from './components/AvatarHeadDecapComponent'
 import { AvatarHeadIKComponent } from './components/AvatarHeadIKComponent'
-import { loadAvatarForUser } from './functions/avatarFunctions'
-import { accessAvatarInputSettingsState } from './state/AvatarInputSettingsState'
+import { loadAvatarForUser, setAvatarHeadOpacity, setupEntityHeadDecap } from './functions/avatarFunctions'
 
 export function avatarDetailsReceptor(
   action: ReturnType<typeof WorldNetworkAction.avatarDetails>,
   world = Engine.instance.currentWorld
 ) {
-  const client = world.clients.get(action.$from)
+  const client = world.users.get(action.$from)
   if (!client) throw Error(`Avatar details action received for a client that does not exist: ${action.$from}`)
   if (client.avatarDetail?.avatarURL === action.avatarDetail.avatarURL)
     return console.log('[AvatarSystem]: ignoring same avatar url')
@@ -77,11 +78,6 @@ export function setXRModeReceptor(
       inputData.controllerGripRightParent.add(inputData.controllerGripRight)
 
       addComponent(entity, XRInputSourceComponent, inputData as any)
-
-      // This is required because using dispatchAction state will be updated in the next frame
-      // while xr hand initialization requires updated controller type which might run in the current frame.
-      const avatarInputState = accessAvatarInputSettingsState()
-      avatarInputState.merge({ controlType: action.avatarInputControllerType as AvatarControllerType })
     }
   } else if (hasComponent(entity, XRInputSourceComponent)) {
     removeComponent(entity, XRInputSourceComponent)
@@ -136,6 +132,7 @@ export default async function AvatarSystem(world: World) {
   const xrHandsInputQuery = defineQuery([AvatarComponent, XRHandsInputComponent, XRInputSourceComponent])
   const xrLGripQuery = defineQuery([AvatarComponent, XRLGripButtonComponent, XRInputSourceComponent])
   const xrRGripQuery = defineQuery([AvatarComponent, XRRGripButtonComponent, XRInputSourceComponent])
+  const headDecapQuery = defineQuery([AvatarHeadDecapComponent, Object3DComponent])
 
   return () => {
     for (const action of avatarDetailsQueue()) avatarDetailsReceptor(action)
@@ -253,6 +250,21 @@ export default async function AvatarSystem(world: World) {
     for (const entity of xrRGripQuery.exit()) {
       const inputComponent = getComponent(entity, XRInputSourceComponent, true)
       if (inputComponent) playTriggerReleaseAnimation(inputComponent.controllerGripRight)
+    }
+
+    for (const entity of headDecapQuery(world)) {
+      const headDecapComponent = getComponent(entity, AvatarHeadDecapComponent)
+
+      if (!headDecapComponent.ready) {
+        const container = getComponent(entity, Object3DComponent).value
+        const isLoading = hasComponent(entity, AvatarEffectComponent)
+        if (container.getObjectByProperty('type', 'SkinnedMesh') && !isLoading) {
+          setupEntityHeadDecap(entity)
+          headDecapComponent.ready = true
+        }
+      } else {
+        setAvatarHeadOpacity(entity, headDecapComponent.opacity)
+      }
     }
   }
 }

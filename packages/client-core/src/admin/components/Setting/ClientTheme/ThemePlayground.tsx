@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import MenuIcon from '@mui/icons-material/Menu'
 import SettingIcon from '@mui/icons-material/Settings'
@@ -7,24 +8,25 @@ import {
   Button,
   Dialog,
   Divider,
-  Drawer,
   IconButton,
-  InputBase,
   List,
   ListItem,
   ListItemText,
   Menu,
   MenuItem,
-  Select,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TablePagination,
-  TableRow
+  TableRow,
+  Typography
 } from '@mui/material'
 
+import DrawerView from '../../../common/DrawerView'
+import InputSelect, { InputMenuItem } from '../../../common/InputSelect'
+import InputText from '../../../common/InputText'
 import styles from '../../../styles/settings.module.scss'
 
 const ThemePlayground = () => {
@@ -33,6 +35,8 @@ const ThemePlayground = () => {
   const [drawerValue, setDrawerValue] = useState(false)
   const [selectValue, setSelectValue] = useState('')
   const [anchorEl, setAnchorEl] = useState<any>(null)
+
+  const { t } = useTranslation()
 
   const openMenu = (e) => {
     setAnchorEl(e.target)
@@ -85,10 +89,10 @@ const ThemePlayground = () => {
       instanceId: 'koqwndpkqwndpkqwndpqkwndm',
       action: (
         <>
-          <a href="#h" className="actionStyle" onClick={() => {}}>
+          <a href="#" className="actionStyle" onClick={() => {}}>
             <span className="spanWhite">View</span>
           </a>
-          <a href="#h" className="actionStyle" onClick={() => {}}>
+          <a href="#" className="actionStyle" onClick={() => {}}>
             <span className="spanDange">Delete</span>
           </a>
         </>
@@ -102,10 +106,10 @@ const ThemePlayground = () => {
       instanceId: 'alksdnvoakewndawepdnpqwdew',
       action: (
         <>
-          <a href="#h" className="actionStyle" onClick={() => {}}>
+          <a href="#" className="actionStyle" onClick={() => {}}>
             <span className="spanWhite">View</span>
           </a>
-          <a href="#h" className="actionStyle" onClick={() => {}}>
+          <a href="#" className="actionStyle" onClick={() => {}}>
             <span className="spanDange">Delete</span>
           </a>
         </>
@@ -119,10 +123,10 @@ const ThemePlayground = () => {
       instanceId: 'qkpwejdpqwdmpqlcmnpqwmndqow',
       action: (
         <>
-          <a href="#h" className="actionStyle" onClick={() => {}}>
+          <a href="#" className="actionStyle" onClick={() => {}}>
             <span className="spanWhite">View</span>
           </a>
-          <a href="#h" className="actionStyle" onClick={() => {}}>
+          <a href="#" className="actionStyle" onClick={() => {}}>
             <span className="spanDange">Delete</span>
           </a>
         </>
@@ -130,14 +134,21 @@ const ThemePlayground = () => {
     }
   ]
 
+  const selectMenu: InputMenuItem[] = ['Option 1', 'Option 2', 'Option 3', 'Option 4'].map((el) => {
+    return {
+      value: el,
+      label: el
+    }
+  })
+
   return (
     <>
-      <label>Theme Playground:</label>
-      <br />
-      <br />
+      <Typography component="h1" className={styles.settingsHeading}>
+        {t('admin:components.setting.themePlayground')}
+      </Typography>
       <Box className="themeDemoArea">
         <nav className="navbar">
-          <div className="logoSection">XR-Engine</div>
+          <div className="logoSection">XREngine</div>
         </nav>
         <div className="mainSection">
           <div className="sidebar">
@@ -294,37 +305,22 @@ const ThemePlayground = () => {
                   ))}
                 </Menu>
                 <label className="textSubheading">Select Dropdown:</label>
-                <Select
-                  displayEmpty
+                <InputSelect
+                  name="dropdown"
                   value={selectValue}
-                  className="select"
-                  MenuProps={{ classes: { paper: 'selectPaper' } }}
+                  menu={selectMenu}
                   onChange={(e) => setSelectValue(e.target.value)}
-                >
-                  <MenuItem value="" key={-1} disabled classes={{ root: 'option', selected: 'optionSelected' }}>
-                    Select Option
-                  </MenuItem>
-                  {['Option 1', 'Option 2', 'Option 3', 'Option 4'].map((el, index) => (
-                    <MenuItem value={el} key={index} classes={{ root: 'option', selected: 'optionSelected' }}>
-                      {el}
-                    </MenuItem>
-                  ))}
-                </Select>
+                />
               </div>
               <Divider variant="inset" component="div" className={styles.colorGridDivider} />
               <div className="textHeading">Input</div>
-              <InputBase className="input" placeholder="this is the input placeholder" />
+              <InputText placeholder={t('admin:components.setting.placeholderText')} />
               <Divider variant="inset" component="div" className={styles.colorGridDivider} />
               <div className="textHeading">Drawer</div>
               <Button variant="contained" className="filledButton" onClick={() => setDrawerValue(true)}>
                 Open Drawer
               </Button>
-              <Drawer
-                open={drawerValue}
-                anchor="right"
-                classes={{ paper: 'drawer' }}
-                onClose={() => setDrawerValue(false)}
-              ></Drawer>
+              <DrawerView open={drawerValue} onClose={() => setDrawerValue(false)}></DrawerView>
               <div className="textHeading">Popup</div>
               <Button variant="contained" className="filledButton" onClick={() => setDialog(true)}>
                 Open Popup

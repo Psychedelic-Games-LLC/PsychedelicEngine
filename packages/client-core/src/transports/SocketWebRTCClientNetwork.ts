@@ -1,5 +1,5 @@
 import * as mediasoupClient from 'mediasoup-client'
-import { DataProducer, Transport as MediaSoupTransport } from 'mediasoup-client/lib/types'
+import { Consumer, DataProducer, Transport as MediaSoupTransport, Producer } from 'mediasoup-client/lib/types'
 import { io as ioclient, Socket } from 'socket.io-client'
 
 import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
@@ -28,8 +28,6 @@ export class SocketWebRTCClientNetwork extends Network {
   }
 
   mediasoupDevice = new mediasoupClient.Device(Engine.instance.isBot ? { handlerName: 'Chrome74' } : undefined)
-  leaving = false
-  left = false
   reconnecting = false
   recvTransport: MediaSoupTransport
   sendTransport: MediaSoupTransport
@@ -38,6 +36,9 @@ export class SocketWebRTCClientNetwork extends Network {
 
   dataProducer: DataProducer
   heartbeat: NodeJS.Timer // is there an equivalent browser type for this?
+
+  producers = [] as Producer[]
+  consumers = [] as Consumer[]
 
   sendActions(actions: Action[]) {
     if (!actions.length) return
@@ -64,7 +65,6 @@ export class SocketWebRTCClientNetwork extends Network {
   }
 
   public async initialize(args: {
-    sceneId: string
     ipAddress: string
     port: string
     locationId?: string
@@ -73,13 +73,12 @@ export class SocketWebRTCClientNetwork extends Network {
     this.reconnecting = false
     if (this.socket) return console.error('[SocketWebRTCClientNetwork]: already initialized')
     console.log('[SocketWebRTCClientNetwork]: Initialising transport with args', args)
-    const { sceneId, ipAddress, port, locationId, channelId } = args
+    const { ipAddress, port, locationId, channelId } = args
 
     const authState = accessAuthState()
     const token = authState.authUser.accessToken.value
 
     const query = {
-      sceneId,
       locationId,
       channelId,
       token
@@ -114,7 +113,7 @@ export class SocketWebRTCClientNetwork extends Network {
       if ((this.socket as any)._connected) return
       ;(this.socket as any)._connected = true
 
-      console.log('CONNECT to port', port, sceneId, locationId)
+      console.log('CONNECT to port', port, locationId)
       onConnectToInstance(this)
 
       // Send heartbeat every second

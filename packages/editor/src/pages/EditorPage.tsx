@@ -1,30 +1,37 @@
 import React, { useEffect, useState } from 'react'
 import { RouteComponentProps } from 'react-router-dom'
 
-import { useProjectState } from '@xrengine/client-core/src/common/services/ProjectService'
-import { useDispatch } from '@xrengine/client-core/src/store'
+import { ProjectAction, useProjectState } from '@xrengine/client-core/src/common/services/ProjectService'
 import { useAuthState } from '@xrengine/client-core/src/user/services/AuthService'
-import { UserId } from '@xrengine/common/src/interfaces/UserId'
 import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
 import { initSystems } from '@xrengine/engine/src/ecs/functions/SystemFunctions'
-import { useWorld } from '@xrengine/engine/src/ecs/functions/SystemHooks'
 import { SystemUpdateType } from '@xrengine/engine/src/ecs/functions/SystemUpdateType'
-import { initializeCoreSystems, initializeSceneSystems } from '@xrengine/engine/src/initializeEngine'
+import {
+  initializeCoreSystems,
+  initializeRealtimeSystems,
+  initializeSceneSystems
+} from '@xrengine/engine/src/initializeEngine'
+import { dispatchAction } from '@xrengine/hyperflux'
 import { loadEngineInjection } from '@xrengine/projects/loadEngineInjection'
+import ProjectService from '@xrengine/server-core/src/projects/project/project.service'
 
 import EditorContainer from '../components/EditorContainer'
 import { EditorAction, useEditorState } from '../services/EditorServices'
+import { registerEditorReceptors } from '../services/EditorServicesReceptor'
 
 export const EditorPage = (props: RouteComponentProps<{ sceneName: string; projectName: string }>) => {
   const editorState = useEditorState()
   const projectState = useProjectState()
   const authState = useAuthState()
-  const dispatch = useDispatch()
   const authUser = authState.authUser
   const user = authState.user
   const [clientInitialized, setClientInitialized] = useState(false)
   const [engineReady, setEngineReady] = useState(false)
   const [isAuthenticated, setAuthenticated] = useState(false)
+
+  useEffect(() => {
+    registerEditorReceptors()
+  }, [])
 
   const systems = [
     {
@@ -74,8 +81,8 @@ export const EditorPage = (props: RouteComponentProps<{ sceneName: string; proje
   useEffect(() => {
     if (engineReady) {
       const { projectName, sceneName } = props.match.params
-      dispatch(EditorAction.projectChanged(projectName ?? null))
-      dispatch(EditorAction.sceneChanged(sceneName ?? null))
+      dispatchAction(EditorAction.projectChanged({ projectName: projectName ?? null }))
+      dispatchAction(EditorAction.sceneChanged({ sceneName: sceneName ?? null }))
     }
   }, [engineReady, props.match.params.projectName, props.match.params.sceneName])
 
@@ -86,6 +93,7 @@ export const EditorPage = (props: RouteComponentProps<{ sceneName: string; proje
     const world = Engine.instance.currentWorld
     initializeCoreSystems().then(async () => {
       initSystems(world, systems)
+      await initializeRealtimeSystems(false)
       await initializeSceneSystems()
       const projects = projectState.projects.value.map((project) => project.name)
       await loadEngineInjection(world, projects)

@@ -8,22 +8,23 @@ import {
 import { MediaInstanceConnectionService } from '@xrengine/client-core/src/common/services/MediaInstanceConnectionService'
 import { useChatState } from '@xrengine/client-core/src/social/services/ChatService'
 import { useLocationState } from '@xrengine/client-core/src/social/services/LocationService'
+import { MediaStreams } from '@xrengine/client-core/src/transports/MediaStreams'
 import { SocketWebRTCClientNetwork } from '@xrengine/client-core/src/transports/SocketWebRTCClientNetwork'
 import { matches } from '@xrengine/engine/src/common/functions/MatchesUtils'
 import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
 import { useEngineState } from '@xrengine/engine/src/ecs/classes/EngineState'
-import { MediaStreams } from '@xrengine/engine/src/networking/systems/MediaStreamSystem'
 import { useEngineRendererState } from '@xrengine/engine/src/renderer/EngineRendererState'
 import WEBGL from '@xrengine/engine/src/renderer/THREE.WebGL'
 import { addActionReceptor } from '@xrengine/hyperflux'
 
 import { NetworkConnectionService } from '../../common/services/NetworkConnectionService'
-import WarningRefreshModal, { WarningRetryModalProps } from '../AlertModals/WarningRetryModal'
+import WarningRetryModal, { WarningRetryModalProps } from '../AlertModals/WarningRetryModal'
 
 const initialModalValues: WarningRetryModalProps = {
   open: false,
   title: '',
-  body: ''
+  body: '',
+  onClose: () => {}
 }
 
 enum WarningModalTypes {
@@ -124,7 +125,8 @@ const InstanceServerWarnings = () => {
           open: true,
           title: t('common:instanceServer.browserError'),
           body: t('common:instanceServer.browserErrorMessage'),
-          noCountdown: true
+          noCountdown: true,
+          onClose: () => {}
         })
         break
       }
@@ -137,7 +139,8 @@ const InstanceServerWarnings = () => {
           body: t('common:instanceServer.noAvailableServersMessage'),
           action: async () => LocationInstanceConnectionService.provisionServer(currentLocation.id),
           parameters: [currentLocation.id, erroredInstanceId, currentLocation.sceneId],
-          noCountdown: false
+          noCountdown: false,
+          onClose: () => {}
         })
         break
       }
@@ -147,7 +150,7 @@ const InstanceServerWarnings = () => {
         const transport = Engine.instance.currentWorld.networks.get(
           Engine.instance.currentWorld.worldNetwork?.hostId
         ) as SocketWebRTCClientNetwork
-        if (transport.left || engineState.isTeleporting.value || transport.reconnecting) return
+        if (engineState.isTeleporting.value || transport.reconnecting) return
 
         setModalValues({
           open: true,
@@ -155,7 +158,8 @@ const InstanceServerWarnings = () => {
           body: t('common:instanceServer.worldDisconnectedMessage'),
           action: async () => window.location.reload(),
           timeout: 30000,
-          noCountdown: false
+          noCountdown: false,
+          onClose: () => {}
         })
         break
       }
@@ -163,7 +167,7 @@ const InstanceServerWarnings = () => {
       case WarningModalTypes.CHANNEL_DISCONNECTED: {
         if (!Engine.instance.userId) return
         const transport = Engine.instance.currentWorld.mediaNetwork as SocketWebRTCClientNetwork
-        if (transport.left || transport.reconnecting) return
+        if (transport.reconnecting) return
 
         const channels = chatState.channels.channels.value
         const instanceChannel = Object.values(channels).find(
@@ -175,23 +179,22 @@ const InstanceServerWarnings = () => {
           body: "You've lost your connection with the media server. We'll try to reconnect when the following time runs out.",
           action: async () => MediaInstanceConnectionService.provisionServer(instanceChannel?.id, true),
           timeout: 15000,
-          noCountdown: false
+          noCountdown: false,
+          onClose: () => {}
         })
         break
       }
 
       case WarningModalTypes.INSTANCE_WEBGL_DISCONNECTED: {
-        const transport = Engine.instance.currentWorld.networks.get(
-          Engine.instance.currentWorld.worldNetwork?.hostId
-        ) as SocketWebRTCClientNetwork
-        if (transport.left || engineState.isTeleporting.value) return
+        if (engineState.isTeleporting.value) return
 
         setModalValues({
           open: true,
           title: t('common:instanceServer.webGLNotEnabled'),
           body: t('common:instanceServer.webGLNotEnabledMessage'),
           action: async () => window.location.reload(),
-          noCountdown: true
+          noCountdown: true,
+          onClose: () => {}
         })
         break
       }
@@ -201,7 +204,8 @@ const InstanceServerWarnings = () => {
           open: true,
           title: t('common:instanceServer.youKickedFromWorld'),
           body: `${t('common:instanceServer.youKickedFromWorldMessage')}: ${message}`,
-          noCountdown: true
+          noCountdown: true,
+          onClose: () => {}
         })
         break
       }
@@ -213,7 +217,8 @@ const InstanceServerWarnings = () => {
           body: `${t('common:instanceServer.cantFindLocation')} '${locationState.locationName.value}'. ${t(
             'common:instanceServer.misspelledOrNotExist'
           )}`,
-          noCountdown: true
+          noCountdown: true,
+          onClose: () => {}
         })
         break
       }
@@ -223,7 +228,8 @@ const InstanceServerWarnings = () => {
           open: true,
           title: t('common:instanceServer.low-frame-title'),
           body: t('common:instanceServer.low-frame-error'),
-          timeout: 10000
+          timeout: 10000,
+          onClose: () => {}
         })
         break
       }
@@ -240,10 +246,10 @@ const InstanceServerWarnings = () => {
   }
 
   return (
-    <WarningRefreshModal
+    <WarningRetryModal
       {...modalValues}
       open={modalValues.open && !engineState.isTeleporting.value}
-      handleClose={() => reset()}
+      onClose={() => reset()}
     />
   )
 }
