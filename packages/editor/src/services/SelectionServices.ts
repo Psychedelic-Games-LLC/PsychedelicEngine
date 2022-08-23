@@ -1,4 +1,4 @@
-import { useState } from '@speigg/hookstate'
+import { useState } from '@hookstate/core'
 
 import { matches, Validator } from '@xrengine/engine/src/common/functions/MatchesUtils'
 import { Entity } from '@xrengine/engine/src/ecs/classes/Entity'
@@ -10,8 +10,8 @@ import { filterParentEntities } from '../functions/filterParentEntities'
 const transformProps = ['position', 'rotation', 'scale', 'matrix']
 
 type SelectionServiceStateType = {
-  selectedEntities: Entity[]
-  selectedParentEntities: Entity[]
+  selectedEntities: (Entity | string)[]
+  selectedParentEntities: (Entity | string)[]
   beforeSelectionChangeCounter: number
   selectionCounter: number
   objectChangeCounter: number
@@ -38,30 +38,29 @@ const SelectionState = defineState({
 })
 
 export const EditorSelectionServiceReceptor = (action) => {
-  getState(SelectionState).batch((s) => {
-    matches(action)
-      .when(SelectionAction.changedBeforeSelection.matches, (action) => {
-        return s.merge({ beforeSelectionChangeCounter: s.beforeSelectionChangeCounter.value + 1 })
+  const s = getState(SelectionState)
+  matches(action)
+    .when(SelectionAction.changedBeforeSelection.matches, (action) => {
+      return s.merge({ beforeSelectionChangeCounter: s.beforeSelectionChangeCounter.value + 1 })
+    })
+    .when(SelectionAction.updateSelection.matches, (action) => {
+      return s.merge({
+        selectionCounter: s.selectionCounter.value + 1,
+        selectedEntities: action.selectedEntities,
+        selectedParentEntities: filterParentEntities(action.selectedEntities)
       })
-      .when(SelectionAction.updateSelection.matches, (action) => {
-        return s.merge({
-          selectionCounter: s.selectionCounter.value + 1,
-          selectedEntities: action.selectedEntities,
-          selectedParentEntities: filterParentEntities(action.selectedEntities)
-        })
+    })
+    .when(SelectionAction.changedObject.matches, (action) => {
+      return s.merge({
+        objectChangeCounter: s.objectChangeCounter.value + 1,
+        affectedObjects: action.objects,
+        propertyName: action.propertyName,
+        transformPropertyChanged: transformProps.includes(action.propertyName)
       })
-      .when(SelectionAction.changedObject.matches, (action) => {
-        return s.merge({
-          objectChangeCounter: s.objectChangeCounter.value + 1,
-          affectedObjects: action.objects,
-          propertyName: action.propertyName,
-          transformPropertyChanged: transformProps.includes(action.propertyName)
-        })
-      })
-      .when(SelectionAction.changedSceneGraph.matches, (action) => {
-        return s.merge({ sceneGraphChangeCounter: s.sceneGraphChangeCounter.value + 1 })
-      })
-  })
+    })
+    .when(SelectionAction.changedSceneGraph.matches, (action) => {
+      return s.merge({ sceneGraphChangeCounter: s.sceneGraphChangeCounter.value + 1 })
+    })
 }
 
 export const accessSelectionState = () => getState(SelectionState)
@@ -89,6 +88,6 @@ export class SelectionAction {
 
   static updateSelection = defineAction({
     type: 'editorSelection.SELECTION_CHANGED',
-    selectedEntities: matches.array as Validator<unknown, Entity[]>
+    selectedEntities: matches.array as Validator<unknown, (Entity | string)[]>
   })
 }

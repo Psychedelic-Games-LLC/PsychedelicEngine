@@ -9,10 +9,6 @@ import TextField from '@mui/material/TextField'
 
 import styles from './selectInput.module.scss'
 
-/**
- * @author Robert Long
- */
-
 interface SelectInputProp {
   value: any
   options: Array<{ label: string; value: any }>
@@ -32,7 +28,6 @@ interface SelectInputProp {
 
 /**
  *
- * @author Robert Long
  * @param {any} value
  * @param {any} options
  * @param {function} onChange
@@ -116,7 +111,15 @@ export function SelectInput({
           icon: styles.icon
         }}
         disabled={disabled}
-        MenuProps={{ classes: { paper: styles.paper } }}
+        MenuProps={{
+          classes: { paper: styles.paper },
+          sx: {
+            // https://stackoverflow.com/a/69403132/2077741
+            '&& .Mui-selected': {
+              backgroundColor: 'var(--dropdownMenuSelectedBackground)'
+            }
+          }
+        }}
         IconComponent={ExpandMoreIcon}
       >
         {options.map((el, index) => (

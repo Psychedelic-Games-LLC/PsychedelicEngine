@@ -6,7 +6,7 @@ import { Color, MathUtils, Texture } from 'three'
 import { removeComponent } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
 import { DefaultArguments, MaterialLibrary } from '@xrengine/engine/src/renderer/materials/MaterialLibrary'
 import { PatternTarget } from '@xrengine/engine/src/renderer/materials/MaterialParms'
-import { extractDefaults } from '@xrengine/engine/src/renderer/materials/Utilities'
+import { extractDefaults, formatMaterialArgs } from '@xrengine/engine/src/renderer/materials/Utilities'
 import { MaterialOverrideComponent } from '@xrengine/engine/src/scene/components/MaterialOverrideComponent'
 import { refreshMaterials } from '@xrengine/engine/src/scene/functions/loaders/MaterialOverrideFunctions'
 
@@ -77,16 +77,6 @@ export default function MaterialAssignment({ entity, node, modelComponent, value
     new Map(values.map((_, index) => [texKey(index, 'expanded'), false]))
   )
 
-  function handleExpandClick(index) {
-    return () => {
-      const _expanded = new Map(expanded.entries())
-      const key = texKey(index, 'expanded')
-      const val = expanded.get(key)!
-      _expanded.set(key, !val)
-      setExpanded(_expanded)
-    }
-  }
-
   const { t } = useTranslation()
 
   function onChangeSize(text) {
@@ -145,18 +135,6 @@ export default function MaterialAssignment({ entity, node, modelComponent, value
   }
 
   async function onRefresh() {
-    /*
-    await Promise.all(
-      [...texturePaths.entries()].map(async ([assignmentKey, path]) => {
-        const [_, uuid, prop] = /(.*)\-([\d\w]*)/.exec(assignmentKey)!
-        const assignment = (values as any[]).find((val) => val.uuid === uuid)
-        if (!assignment) return
-        if (assignment.args === undefined) {
-          assignment.args = {}
-        }
-        if (path !== '') assignment.args[prop] = await AssetLoader.loadAsync(path)
-      })
-    )*/
     const nuVals = await refreshMaterials(node.entity)
     values.forEach((_, idx) => (values[idx] = nuVals[idx]))
     onChange(values)
@@ -176,7 +154,10 @@ export default function MaterialAssignment({ entity, node, modelComponent, value
       if (!defaultArguments) return
       const defaultValues = extractDefaults(defaultArguments)
       const argStructure = defaultArguments
-      const argValues = assignment.args ? { ...defaultValues, ...assignment.args } : defaultValues
+      const argValues = formatMaterialArgs(
+        assignment.args ? { ...defaultValues, ...assignment.args } : defaultValues,
+        defaultArguments
+      )
 
       function setArgsProp(prop) {
         return (value) => {

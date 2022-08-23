@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import multiLogger from '@xrengine/common/src/logger'
 import { AllFileTypes } from '@xrengine/engine/src/assets/constants/fileTypes'
 
 import { getEntries, uploadProjectAssetsFromUpload } from '../../functions/assetFunctions'
@@ -8,6 +9,8 @@ import { accessEditorState } from '../../services/EditorServices'
 import ErrorDialog from '../dialogs/ErrorDialog'
 import { ProgressDialog } from '../dialogs/ProgressDialog'
 import { useDialog } from '../hooks/useDialog'
+
+const logger = multiLogger.child({ component: 'editor:useUpload' })
 
 type Props = {
   multiple?: boolean
@@ -34,7 +37,7 @@ export default function useUpload(options: Props = {}) {
     if (item.isFile) {
       let accepted = false
       for (const pattern of accepts) {
-        if (item.name.endsWith(pattern)) {
+        if (item.name.toLowerCase().endsWith(pattern)) {
           accepted = true
           break
         }
@@ -48,8 +51,6 @@ export default function useUpload(options: Props = {}) {
   const onUpload = useCallback(
     //initailizing files by using assets files after upload.
     async (entries: FileSystemEntry[]) => {
-      // initializing assets as an empty array
-      let assets = [] as { url: string }[]
       try {
         //check if not multiple and files contains length greator
         if (!multiple && entries.length > 1) {
@@ -65,7 +66,6 @@ export default function useUpload(options: Props = {}) {
         const abortController = new AbortController()
         setDialogComponent(
           <ProgressDialog
-            title={t('editor:asset.useUpload.progressTitle')}
             message={t('editor:asset.useUpload.progressMsg', { uploaded: 0, total: entries.length, percentage: 0 })}
             cancelable={true}
             onCancel={() => {
@@ -75,10 +75,9 @@ export default function useUpload(options: Props = {}) {
           />
         )
         const { projectName } = accessEditorState().value
-        assets = await uploadProjectAssetsFromUpload(projectName!, entries, (item, total, progress) => {
+        const assets = await uploadProjectAssetsFromUpload(projectName!, entries, (item, total, progress) => {
           setDialogComponent(
             <ProgressDialog
-              title={t('editor:asset.useUpload.progressTitle')}
               message={t('editor:asset.useUpload.progressMsg', {
                 uploaded: item,
                 total,
@@ -86,15 +85,18 @@ export default function useUpload(options: Props = {}) {
               })}
               cancelable={true}
               onCancel={() => {
+                assets.cancel()
                 abortController.abort()
                 setDialogComponent(null)
               }}
             />
           )
         })
+        const result = await Promise.all(assets.promises)
         setDialogComponent(null)
+        return result
       } catch (error) {
-        console.error(error)
+        logger.error(error, 'Error on upload')
         setDialogComponent(
           <ErrorDialog
             title={t('editor:asset.useUpload.uploadError')}
@@ -106,7 +108,6 @@ export default function useUpload(options: Props = {}) {
         )
         return null
       }
-      return assets
     },
     [multiple, accepts]
   )

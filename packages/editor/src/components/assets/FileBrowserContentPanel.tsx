@@ -1,20 +1,22 @@
-import { Downgraded } from '@speigg/hookstate'
+import { Downgraded } from '@hookstate/core'
 import React, { memo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import InfiniteScroll from 'react-infinite-scroller'
 
-import ConfirmModal from '@xrengine/client-core/src/admin/common/ConfirmModal'
+import ConfirmDialog from '@xrengine/client-core/src/admin/common/ConfirmDialog'
+import LoadingView from '@xrengine/client-core/src/admin/common/LoadingView'
 import {
   FileBrowserService,
   FileBrowserServiceReceptor,
+  FILES_PAGE_LIMIT,
   useFileBrowserState
 } from '@xrengine/client-core/src/common/services/FileBrowserService'
+import { processFileName } from '@xrengine/common/src/utils/processFileName'
 import { ScenePrefabs } from '@xrengine/engine/src/scene/functions/registerPrefabs'
 import { addActionReceptor, removeActionReceptor } from '@xrengine/hyperflux'
 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AutorenewIcon from '@mui/icons-material/Autorenew'
-import { CircularProgress } from '@mui/material'
+import { TablePagination } from '@mui/material'
 import Breadcrumbs from '@mui/material/Breadcrumbs'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
@@ -30,9 +32,6 @@ import { FileBrowserItem } from './FileBrowserGrid'
 import { FileDataType } from './FileDataType'
 import styles from './styles.module.scss'
 
-/**
- * @author Abhishek Pathak
- */
 export const PrefabFileType = {
   gltf: ScenePrefabs.model,
   'gltf-binary': ScenePrefabs.model,
@@ -59,6 +58,7 @@ const MemoFileGridItem = memo(FileBrowserItem)
 
 type FileBrowserContentPanelProps = {
   onSelectionChanged: (AssetSelectionChangePropsType) => void
+  disableDnD?: boolean
   selectedFile?: string
 }
 
@@ -74,7 +74,6 @@ export function isFileDataType(value: any): value is FileDataType {
 
 /**
  * FileBrowserPanel used to render view for AssetsPanel.
- * @author Abhishek Pathak
  * @constructor
  */
 const FileBrowserContentPanel: React.FC<FileBrowserContentPanelProps> = (props) => {
@@ -85,12 +84,15 @@ const FileBrowserContentPanel: React.FC<FileBrowserContentPanelProps> = (props) 
   )
   const fileState = useFileBrowserState()
   const filesValue = fileState.files.attach(Downgraded).value
+  const { skip, total, retrieving } = fileState.value
   const [fileProperties, setFileProperties] = useState<any>(null)
   const [files, setFiles] = useState<FileDataType[]>([])
-  const [openPropertiesConfirmModal, setOpenPropertiesModal] = useState(false)
+  const [openProperties, setOpenPropertiesModal] = useState(false)
   const [openConfirm, setOpenConfirm] = useState(false)
   const [contentToDeletePath, setContentToDeletePath] = useState('')
   const [contentToDeleteType, setContentToDeleteType] = useState('')
+
+  const page = skip / FILES_PAGE_LIMIT
 
   const breadcrumbs = selectedDirectory
     .slice(1, -1)
@@ -162,12 +164,16 @@ const FileBrowserContentPanel: React.FC<FileBrowserContentPanelProps> = (props) 
   }, [fileState])
 
   useEffect(() => {
-    onRefreshDirectory()
+    FileBrowserService.fetchFiles(selectedDirectory)
   }, [selectedDirectory])
+
+  const handlePageChange = async (_event, newPage: number) => {
+    await FileBrowserService.fetchFiles(selectedDirectory, newPage)
+  }
 
   const createNewFolder = async () => {
     await FileBrowserService.addNewFolder(`${selectedDirectory}New_Folder`)
-    await onRefreshDirectory()
+    await FileBrowserService.fetchFiles(selectedDirectory)
   }
 
   const dropItemsOnPanel = async (data: FileDataType | DnDFileType, dropOn?: FileDataType) => {
@@ -187,7 +193,8 @@ const FileBrowserContentPanel: React.FC<FileBrowserContentPanelProps> = (props) 
           if (!file.type) {
             await FileBrowserService.addNewFolder(`${path}${file.name}`)
           } else {
-            await FileBrowserService.putContent(file.name, path, file as any, file.type)
+            const name = processFileName(file.name)
+            await FileBrowserService.putContent(name, path, file as any, file.type)
           }
         })
       )
@@ -197,7 +204,7 @@ const FileBrowserContentPanel: React.FC<FileBrowserContentPanelProps> = (props) 
   }
 
   const onRefreshDirectory = async () => {
-    await FileBrowserService.fetchFiles(selectedDirectory)
+    await FileBrowserService.fetchFiles(selectedDirectory, page)
   }
 
   const onBackDirectory = () => {
@@ -287,7 +294,7 @@ const FileBrowserContentPanel: React.FC<FileBrowserContentPanelProps> = (props) 
   }
 
   return (
-    <>
+    <div className={styles.fileBrowserRoot}>
       <div style={headGrid}>
         <ToolButton
           tooltip={t('editor:layout.filebrowser.back')}
@@ -311,32 +318,45 @@ const FileBrowserContentPanel: React.FC<FileBrowserContentPanelProps> = (props) 
         />
       </div>
 
+      {retrieving && (
+        <LoadingView
+          className={styles.filesLoading}
+          title={t('editor:layout.filebrowser.loadingFiles')}
+          variant="body2"
+          titleColor="var(--textColor)"
+        />
+      )}
+
       <ContextMenuTrigger id={'uniqueId_current'} holdToDisplay={-1}>
         <div id="file-browser-panel" className={styles.panelContainer}>
           <div className={styles.contentContainer}>
-            <InfiniteScroll
-              pageStart={0}
-              hasMore={false}
-              loader={<CircularProgress />}
-              threshold={100}
-              useWindow={false}
-              loadMore={() => {}}
-            >
-              {unique(files, (file) => file.key).map((file, i) => (
-                <MemoFileGridItem
-                  key={file.key}
-                  contextMenuId={i.toString()}
-                  item={file}
-                  onClick={onSelect}
-                  moveContent={moveContent}
-                  deleteContent={handleConfirmDelete}
-                  currentContent={currentContentRef}
-                  setOpenPropertiesModal={setOpenPropertiesModal}
-                  setFileProperties={setFileProperties}
-                  dropItemsOnPanel={dropItemsOnPanel}
-                />
-              ))}
-            </InfiniteScroll>
+            {unique(files, (file) => file.key).map((file, i) => (
+              <MemoFileGridItem
+                key={file.key}
+                contextMenuId={i.toString()}
+                item={file}
+                disableDnD={props.disableDnD}
+                onClick={onSelect}
+                moveContent={moveContent}
+                deleteContent={handleConfirmDelete}
+                currentContent={currentContentRef}
+                setOpenPropertiesModal={setOpenPropertiesModal}
+                setFileProperties={setFileProperties}
+                dropItemsOnPanel={dropItemsOnPanel}
+              />
+            ))}
+
+            {total > 0 && fileState.files.value.length < total && (
+              <TablePagination
+                className={styles.pagination}
+                component="div"
+                count={total}
+                page={page}
+                rowsPerPage={FILES_PAGE_LIMIT}
+                rowsPerPageOptions={[]}
+                onPageChange={handlePageChange}
+              />
+            )}
           </div>
         </div>
       </ContextMenuTrigger>
@@ -345,9 +365,9 @@ const FileBrowserContentPanel: React.FC<FileBrowserContentPanelProps> = (props) 
         <MenuItem onClick={createNewFolder}>{t('editor:layout.filebrowser.addNewFolder')}</MenuItem>
         <MenuItem onClick={pasteContent}>{t('editor:layout.filebrowser.pasteAsset')}</MenuItem>
       </ContextMenu>
-      {openPropertiesConfirmModal && fileProperties && (
+      {openProperties && fileProperties && (
         <Dialog
-          open={openPropertiesConfirmModal}
+          open={openProperties}
           onClose={() => setOpenPropertiesModal(false)}
           aria-labelledby="alert-dialog-title"
           aria-describedby="alert-dialog-description"
@@ -372,7 +392,7 @@ const FileBrowserContentPanel: React.FC<FileBrowserContentPanelProps> = (props) 
           </Grid>
         </Dialog>
       )}
-      <ConfirmModal
+      <ConfirmDialog
         open={openConfirm}
         description={`${t('editor:dialog.confirmContentDelete')} ${
           contentToDeleteType == 'folder' ? t('editor:dialog.folder') : t('editor:dialog.file')
@@ -380,7 +400,7 @@ const FileBrowserContentPanel: React.FC<FileBrowserContentPanelProps> = (props) 
         onClose={handleConfirmClose}
         onSubmit={deleteContent}
       />
-    </>
+    </div>
   )
 }
 

@@ -4,19 +4,21 @@ import { Group, Quaternion, Vector3 } from 'three'
 
 import { NetworkId } from '@xrengine/common/src/interfaces/NetworkId'
 import { UserId } from '@xrengine/common/src/interfaces/UserId'
+import { getState } from '@xrengine/hyperflux'
 
 import { createMockNetwork } from '../../../tests/util/createMockNetwork'
-import { roundNumberToPlaces } from '../../common/functions/roundVector'
+import { roundNumberToPlaces } from '../../../tests/util/MathTestUtils'
 import { createQuaternionProxy, createVector3Proxy } from '../../common/proxies/three'
 import { Engine } from '../../ecs/classes/Engine'
+import { EngineState } from '../../ecs/classes/EngineState'
 import { Entity } from '../../ecs/classes/Entity'
 import { addComponent } from '../../ecs/functions/ComponentFunctions'
 import { createEntity } from '../../ecs/functions/EntityFunctions'
 import { createEngine } from '../../initializeEngine'
 import { VelocityComponent } from '../../physics/components/VelocityComponent'
 import { TransformComponent } from '../../transform/components/TransformComponent'
-import { XRHandsInputComponent } from '../../xr/components/XRHandsInputComponent'
-import { XRHandBones } from '../../xr/types/XRHandBones'
+import { XRHandsInputComponent } from '../../xr/XRComponents'
+import { XRHandBones } from '../../xr/XRHandBones'
 import { NetworkObjectAuthorityTag } from '../components/NetworkObjectAuthorityTag'
 import { NetworkObjectComponent } from '../components/NetworkObjectComponent'
 import {
@@ -81,7 +83,7 @@ describe('DataReader', () => {
     TransformComponent.position.z[entity] = 0
 
     view.cursor = 0
-
+    console.log('TransformComponent.position', TransformComponent.position)
     const readPosition = readComponent(TransformComponent.position)
 
     readPosition(view, entity)
@@ -463,9 +465,8 @@ describe('DataReader', () => {
 
     addComponent(entity, NetworkObjectComponent, {
       networkId,
-      ownerId: userId,
-      prefab: '',
-      parameters: {}
+      authorityUserId: userId,
+      ownerId: userId
     })
 
     writeEntity(view, networkId, entity)
@@ -532,12 +533,11 @@ describe('DataReader', () => {
 
     addComponent(entity, NetworkObjectComponent, {
       networkId,
-      ownerId: userId,
-      prefab: '',
-      parameters: {}
+      authorityUserId: userId,
+      ownerId: userId
     })
 
-    addComponent(entity, NetworkObjectAuthorityTag, {})
+    addComponent(entity, NetworkObjectAuthorityTag, true)
 
     writeEntity(view, networkId, entity)
 
@@ -640,9 +640,8 @@ describe('DataReader', () => {
       })
       addComponent(entity, NetworkObjectComponent, {
         networkId,
-        ownerId: userId,
-        prefab: '',
-        parameters: {}
+        authorityUserId: userId,
+        ownerId: userId
       })
       network.userIndexToUserId.set(userIndex, userId)
       network.userIdToUserIndex.set(userId, userIndex)
@@ -715,9 +714,8 @@ describe('DataReader', () => {
       })
       addComponent(entity, NetworkObjectComponent, {
         networkId,
-        ownerId: userId,
-        prefab: '',
-        parameters: {}
+        authorityUserId: userId,
+        ownerId: userId
       })
     })
 
@@ -792,7 +790,8 @@ describe('DataReader', () => {
     const network = Engine.instance.currentWorld.worldNetwork
     network.userIndexToUserId = new Map()
     network.userIdToUserIndex = new Map()
-    Engine.instance.currentWorld.fixedTick = 1
+    const engineState = getState(EngineState)
+    engineState.fixedTick.set(1)
 
     const n = 10
     const entities: Entity[] = Array(n)
@@ -812,9 +811,8 @@ describe('DataReader', () => {
       })
       addComponent(entity, NetworkObjectComponent, {
         networkId,
-        ownerId: userId,
-        prefab: '',
-        parameters: {}
+        authorityUserId: userId,
+        ownerId: userId
       })
       network.userIndexToUserId.set(userIndex, userId)
       network.userIdToUserIndex.set(userId, userIndex)
@@ -837,7 +835,8 @@ describe('DataReader', () => {
 
     network.userIndexToUserId = new Map()
     network.userIdToUserIndex = new Map()
-    Engine.instance.currentWorld.fixedTick = 60
+    const engineState = getState(EngineState)
+    engineState.fixedTick.set(60)
 
     const n = 10
     const entities: Entity[] = Array(n)
@@ -857,9 +856,8 @@ describe('DataReader', () => {
       })
       addComponent(entity, NetworkObjectComponent, {
         networkId,
-        ownerId: userId,
-        prefab: '',
-        parameters: {}
+        authorityUserId: userId,
+        ownerId: userId
       })
       network.userIndexToUserId.set(userIndex, userId)
       network.userIdToUserIndex.set(userId, userIndex)
@@ -876,7 +874,8 @@ describe('DataReader', () => {
     const network = Engine.instance.currentWorld.worldNetwork
     network.userIndexToUserId = new Map()
     network.userIdToUserIndex = new Map()
-    Engine.instance.currentWorld.fixedTick = 1
+    const engineState = getState(EngineState)
+    engineState.fixedTick.set(1)
 
     const n = 10
     const entities: Entity[] = Array(n)
@@ -896,9 +895,8 @@ describe('DataReader', () => {
       })
       addComponent(entity, NetworkObjectComponent, {
         networkId,
-        ownerId: userId,
-        prefab: '',
-        parameters: {}
+        authorityUserId: userId,
+        ownerId: userId
       })
       network.userIndexToUserId.set(userIndex, userId)
       network.userIdToUserIndex.set(userId, userIndex)

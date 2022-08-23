@@ -22,8 +22,6 @@ export default (app: Application) => {
 
   /**
    * Initialize our service with any options it requires and docs
-   *
-   * @author Vyacheslav Solovjov
    */
   const event = new Channel(options, app)
   event.docs = channelDocs
@@ -39,7 +37,6 @@ export default (app: Application) => {
    *
    * @param data which is parsed to create channel
    * @returns created channel data
-   * @author Vyacheslav Solovjov
    */
   service.publish('created', async (data): Promise<any> => {
     try {
@@ -47,27 +44,6 @@ export default (app: Application) => {
       if (data.channelType === 'user') {
         data.user1 = await app.service('user').get(data.userId1)
         data.user2 = await app.service('user').get(data.userId2)
-        // const user1AvatarResult = await app.service('static-resource').find({
-        //   query: {
-        //     staticResourceType: 'user-thumbnail',
-        //     userId: data.userId1
-        //   }
-        // }) as any;
-        //
-        // const user2AvatarResult = await app.service('static-resource').find({
-        //   query: {
-        //     staticResourceType: 'user-thumbnail',
-        //     userId: data.userId2
-        //   }
-        // }) as any;
-        //
-        // if (user1AvatarResult.total > 0) {
-        //   data.user1.dataValues.avatarUrl = user1AvatarResult.data[0].url;
-        // }
-        //
-        // if (user2AvatarResult.total > 0) {
-        //   data.user2.dataValues.avatarUrl = user2AvatarResult.data[0].url;
-        // }
         targetIds = []
       } else if (data.channelType === 'group') {
         if (data.group == null) {
@@ -87,20 +63,6 @@ export default (app: Application) => {
             }
           ]
         })
-        // await Promise.all(groupUsers.map(async (groupUser) => {
-        //   const avatarResult = await app.service('static-resource').find({
-        //     query: {
-        //       staticResourceType: 'user-thumbnail',
-        //       userId: groupUser.userId
-        //     }
-        //   }) as any;
-        //
-        //   if (avatarResult.total > 0) {
-        //     groupUser.dataValues.user.dataValues.avatarUrl = avatarResult.data[0].url;
-        //   }
-        //
-        //   return await Promise.resolve();
-        // }));
 
         if (data.group?.dataValues) {
           data.group.dataValues.groupUsers = groupUsers
@@ -109,43 +71,13 @@ export default (app: Application) => {
         }
         targetIds = groupUsers.map((groupUser) => groupUser.userId)
       } else if (data.channelType === 'party') {
-        if (data.party == null) {
-          data.party = await app.service('party').Model.findOne({
-            where: {
-              id: data.partyId
-            }
-          })
-        }
-        const partyUsers = await app.service('party-user').Model.findAll({
-          where: {
-            partyId: data.partyId
-          },
-          include: [
-            {
-              model: app.service('user').Model
-            }
-          ]
-        })
-        // await Promise.all(partyUsers.map(async (partyUser) => {
-        //   const avatarResult = await app.service('static-resource').find({
-        //     query: {
-        //       staticResourceType: 'user-thumbnail',
-        //       userId: partyUser.userId
-        //     }
-        //   }) as any;
-        //
-        //   if (avatarResult.total > 0) {
-        //     partyUser.dataValues.user.dataValues.avatarUrl = avatarResult.data[0].url;
-        //   }
-        //
-        //   return await Promise.resolve();
-        // }));
-        if (data.party?.dataValues) {
-          data.party.dataValues.partyUsers = partyUsers
-        } else if (data.party) {
-          data.party.partyUsers = partyUsers
-        }
-        targetIds = partyUsers.map((partyUser) => partyUser.userId)
+        if (data.party == null) data.party = await app.service('party').Model.findOne({ where: { id: data.partyId } })
+        const partyUsers = await app.service('party-user').find({ query: { partyId: data.partyId } })
+
+        if (data.party?.dataValues) data.party.dataValues.party_users = partyUsers.data
+        else if (data.party) data.party.party_users = partyUsers.data
+
+        targetIds = partyUsers.data.map((partyUser) => partyUser.userId)
       } else if (data.channelType === 'instance') {
         if (data.instance == null) {
           data.instance = await app.service('instance').Model.findOne({
@@ -160,20 +92,6 @@ export default (app: Application) => {
             instanceId: data.instanceId
           }
         })
-        // await Promise.all(instanceUsers.map(async (instanceUser) => {
-        //   const avatarResult = await app.service('static-resource').find({
-        //     query: {
-        //       staticResourceType: 'user-thumbnail',
-        //       userId: instanceUser.id
-        //     }
-        //   }) as any;
-        //
-        //   if (avatarResult.total > 0) {
-        //     instanceUser.dataValues.avatarUrl = avatarResult.data[0].url;
-        //   }
-        //
-        //   return await Promise.resolve();
-        // }));
         if (data.instance?.dataValues) {
           data.instance.dataValues.instanceUsers = instanceUsers
         } else if (data.instance) {
@@ -200,7 +118,6 @@ export default (app: Application) => {
    *
    * @param data which is used to update channel
    * @returns updated channel data
-   * @author Vyacheslav Solovjov
    */
   service.publish('patched', async (data): Promise<any> => {
     try {
@@ -208,27 +125,6 @@ export default (app: Application) => {
       if (data.channelType === 'user') {
         data.user1 = await app.service('user').get(data.userId1)
         data.user2 = await app.service('user').get(data.userId2)
-        // const user1AvatarResult = await app.service('static-resource').find({
-        //   query: {
-        //     staticResourceType: 'user-thumbnail',
-        //     userId: data.userId1
-        //   }
-        // }) as any;
-        //
-        // const user2AvatarResult = await app.service('static-resource').find({
-        //   query: {
-        //     staticResourceType: 'user-thumbnail',
-        //     userId: data.userId2
-        //   }
-        // }) as any;
-        //
-        // if (user1AvatarResult.total > 0) {
-        //   data.user1.dataValues.avatarUrl = user1AvatarResult.data[0].url;
-        // }
-        //
-        // if (user2AvatarResult.total > 0) {
-        //   data.user2.dataValues.avatarUrl = user2AvatarResult.data[0].url;
-        // }
         targetIds = [data.userId1, data.userId2]
       } else if (data.channelType === 'group') {
         if (data.group == null) {
@@ -248,20 +144,6 @@ export default (app: Application) => {
             }
           ]
         })
-        // await Promise.all(groupUsers.map(async (groupUser) => {
-        //   const avatarResult = await app.service('static-resource').find({
-        //     query: {
-        //       staticResourceType: 'user-thumbnail',
-        //       userId: groupUser.userId
-        //     }
-        //   }) as any;
-        //
-        //   if (avatarResult.total > 0) {
-        //     groupUser.dataValues.user.dataValues.avatarUrl = avatarResult.data[0].url;
-        //   }
-        //
-        //   return await Promise.resolve();
-        // }));
 
         if (data.group?.dataValues) {
           data.group.dataValues.groupUsers = groupUsers
@@ -270,43 +152,13 @@ export default (app: Application) => {
         }
         targetIds = groupUsers.map((groupUser) => groupUser.userId)
       } else if (data.channelType === 'party') {
-        if (data.party == null) {
-          data.party = await app.service('party').Model.findOne({
-            where: {
-              id: data.partyId
-            }
-          })
-        }
-        const partyUsers = await app.service('party-user').Model.findAll({
-          where: {
-            partyId: data.partyId
-          },
-          include: [
-            {
-              model: app.service('user').Model
-            }
-          ]
-        })
-        // await Promise.all(partyUsers.map(async (partyUser) => {
-        //   const avatarResult = await app.service('static-resource').find({
-        //     query: {
-        //       staticResourceType: 'user-thumbnail',
-        //       userId: partyUser.userId
-        //     }
-        //   }) as any;
-        //
-        //   if (avatarResult.total > 0) {
-        //     partyUser.dataValues.user.dataValues.avatarUrl = avatarResult.data[0].url;
-        //   }
-        //
-        //   return await Promise.resolve();
-        // }));
-        if (data.party?.dataValues) {
-          data.party.dataValues.partyUsers = partyUsers
-        } else if (data.party) {
-          data.party.partyUsers = partyUsers
-        }
-        targetIds = partyUsers.map((partyUser) => partyUser.userId)
+        if (data.party == null) data.party = await app.service('party').Model.findOne({ where: { id: data.partyId } })
+        const partyUsers = await app.service('party-user').find({ query: { partyId: data.partyId } })
+
+        if (data.party?.dataValues) data.party.dataValues.party_users = partyUsers.data
+        else if (data.party) data.party.party_users = partyUsers.data
+
+        targetIds = partyUsers.data.map((partyUser) => partyUser.userId)
       } else if (data.channelType === 'instance') {
         if (data.instance == null) {
           data.instance = await app.service('instance').Model.findOne({
@@ -321,20 +173,6 @@ export default (app: Application) => {
             instanceId: data.instanceId
           }
         })
-        // await Promise.all(instanceUsers.map(async (instanceUser) => {
-        //   const avatarResult = await app.service('static-resource').find({
-        //     query: {
-        //       staticResourceType: 'user-thumbnail',
-        //       userId: instanceUser.id
-        //     }
-        //   }) as any;
-        //
-        //   if (avatarResult.total > 0) {
-        //     instanceUser.dataValues.avatarUrl = avatarResult.data[0].url;
-        //   }
-        //
-        //   return await Promise.resolve();
-        // }));
         if (data.instance?.dataValues) {
           data.instance.dataValues.instanceUsers = instanceUsers
         } else if (data.instance) {
@@ -361,7 +199,6 @@ export default (app: Application) => {
    *
    * @param data which contains userId! and userId2
    * @returns deleted channel data
-   * @author Vyacheslav Solovjov
    */
   service.publish('removed', async (data): Promise<any> => {
     let targetIds
@@ -375,11 +212,7 @@ export default (app: Application) => {
       })
       targetIds = groupUsers.map((groupUser) => groupUser.userId)
     } else if (data.channelType === 'party') {
-      const partyUsers = await app.service('party-user').Model.findAll({
-        where: {
-          partyId: data.partyId
-        }
-      })
+      const partyUsers = await app.service('party-user').Model.findAll({ where: { partyId: data.partyId } })
       targetIds = partyUsers.map((partyUser) => partyUser.userId)
     } else if (data.channelType === 'instance') {
       const instanceUsers = await app.service('user').Model.findAll({

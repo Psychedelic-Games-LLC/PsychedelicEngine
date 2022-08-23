@@ -2,14 +2,18 @@ import * as mediasoupClient from 'mediasoup-client'
 import { Consumer, DataProducer, Transport as MediaSoupTransport, Producer } from 'mediasoup-client/lib/types'
 import { io as ioclient, Socket } from 'socket.io-client'
 
+import { UserId } from '@xrengine/common/src/interfaces/UserId'
+import multiLogger from '@xrengine/common/src/logger'
 import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
-import { Network, NetworkType } from '@xrengine/engine/src/networking/classes/Network'
+import { Network } from '@xrengine/engine/src/networking/classes/Network'
 import { MessageTypes } from '@xrengine/engine/src/networking/enums/MessageTypes'
-import { Action } from '@xrengine/hyperflux/functions/ActionFunctions'
+import ActionFunctions, { Action, Topic } from '@xrengine/hyperflux/functions/ActionFunctions'
 
 import { accessAuthState } from '../user/services/AuthService'
 import { instanceserverHost } from '../util/config'
 import { onConnectToInstance } from './SocketWebRTCClientFunctions'
+
+const logger = multiLogger.child({ component: 'client-core:SocketWebRTCClientNetwork' })
 
 // import { encode, decode } from 'msgpackr'
 
@@ -21,10 +25,9 @@ const promisedRequest = (socket: Socket) => {
 }
 
 export class SocketWebRTCClientNetwork extends Network {
-  type: NetworkType
-  constructor(hostId: string, type: NetworkType) {
-    super(hostId)
-    this.type = type
+  constructor(hostId: UserId, topic: Topic) {
+    super(hostId, topic)
+    ActionFunctions.addOutgoingTopicIfNecessary(topic)
   }
 
   mediasoupDevice = new mediasoupClient.Device(Engine.instance.isBot ? { handlerName: 'Chrome74' } : undefined)
@@ -40,10 +43,9 @@ export class SocketWebRTCClientNetwork extends Network {
   producers = [] as Producer[]
   consumers = [] as Consumer[]
 
-  sendActions(actions: Action[]) {
-    if (!actions.length) return
-    for (const action of actions) action.$topic = undefined!
-    this.socket?.emit(MessageTypes.ActionData.toString(), /*encode(*/ actions) //)
+  sendActions() {
+    const actions = [...Engine.instance.store.actions.outgoing[this.topic].queue]
+    if (actions.length) this.socket?.emit(MessageTypes.ActionData.toString(), /*encode(*/ actions) //)
   }
 
   // This sends message on a data channel (data channel creation is now handled explicitly/default)
@@ -53,26 +55,28 @@ export class SocketWebRTCClientNetwork extends Network {
   }
 
   close() {
-    console.log('SocketWebRTCClientNetwork close')
-    this.recvTransport.close()
-    this.sendTransport.close()
+    logger.info('SocketWebRTCClientNetwork close')
+    this.recvTransport?.close()
+    this.sendTransport?.close()
     this.recvTransport = null!
     this.sendTransport = null!
-    clearInterval(this.heartbeat)
-    this.socket.removeAllListeners()
-    this.socket.close()
+    this.heartbeat && clearInterval(this.heartbeat)
+    this.socket?.removeAllListeners()
+    this.socket?.close()
     this.socket = null!
   }
 
   public async initialize(args: {
     ipAddress: string
     port: string
-    locationId?: string
-    channelId?: string
+    locationId?: string | null
+    channelId?: string | null
   }): Promise<void> {
     this.reconnecting = false
-    if (this.socket) return console.error('[SocketWebRTCClientNetwork]: already initialized')
-    console.log('[SocketWebRTCClientNetwork]: Initialising transport with args', args)
+    if (this.socket) {
+      return logger.error(new Error('Network already initialized'))
+    }
+    logger.info('Initialising transport with args %o', args)
     const { ipAddress, port, locationId, channelId } = args
 
     const authState = accessAuthState()
@@ -113,7 +117,7 @@ export class SocketWebRTCClientNetwork extends Network {
       if ((this.socket as any)._connected) return
       ;(this.socket as any)._connected = true
 
-      console.log('CONNECT to port', port, locationId)
+      logger.info('CONNECT to port %o', { port, locationId })
       onConnectToInstance(this)
 
       // Send heartbeat every second

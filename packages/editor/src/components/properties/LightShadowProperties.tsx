@@ -13,12 +13,11 @@ import BooleanInput from '../inputs/BooleanInput'
 import InputGroup from '../inputs/InputGroup'
 import NumericInputGroup from '../inputs/NumericInputGroup'
 import SelectInput from '../inputs/SelectInput'
+import { InfoTooltip } from '../layout/Tooltip'
 import { updateProperty } from './Util'
 
 /**
  *  Array containing options for shadow resolution
- *
- * @author Robert Long
  */
 const ShadowMapResolutionOptions = [
   {
@@ -53,7 +52,6 @@ type LightShadowPropertiesProps = {
  * OnChangeShadowMapResolution used to customize properties of LightShadowProperties
  * Used with LightNodeEditors.
  *
- * @author Robert Long
  * @type {[class component]}
  */
 export const LightShadowProperties = (props: LightShadowPropertiesProps) => {
@@ -73,10 +71,8 @@ export const LightShadowProperties = (props: LightShadowPropertiesProps) => {
     <Fragment>
       <InputGroup
         name="Cast Shadow"
-        label={
-          t('editor:properties.directionalLight.lbl-castShadow') +
-          (csmEnabled ? '. ' + t('editor:properties.directionalLight.lbl-disableForCSM') : '')
-        }
+        label={t('editor:properties.directionalLight.lbl-castShadow')}
+        info={csmEnabled ? t('editor:properties.directionalLight.lbl-disableForCSM') : ''}
       >
         <BooleanInput
           value={lightComponent.castShadow}

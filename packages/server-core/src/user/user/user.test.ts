@@ -1,7 +1,7 @@
 import assert from 'assert'
 import { v1 } from 'uuid'
 
-import { User } from '@xrengine/common/src/interfaces/User'
+import { UserInterface } from '@xrengine/common/src/interfaces/User'
 
 import { Application } from '../../../declarations'
 import { createFeathersExpressApp } from '../../createApp'
@@ -22,37 +22,45 @@ describe('user service', () => {
 
   it('should create a user with guest role', async () => {
     const name = `Test #${Math.random()}`
-    const avatarId = 'CyberbotGreen'
-    const userRole = 'guest'
+    const avatarName = 'CyberbotGreen'
+    const isGuest = true
+
+    const avatar = await app.service('avatar').create({
+      name: avatarName
+    })
 
     const item = (await app.service('user').create({
       name,
-      avatarId,
-      userRole
-    })) as User
+      avatarId: avatar.id,
+      isGuest
+    })) as UserInterface
     users.push(item)
 
     assert.equal(item.name, name)
-    assert.equal(item.avatarId, avatarId)
-    assert.equal(item.userRole, userRole)
+    assert.equal(item.avatarId, avatar.id)
+    assert.equal(item.isGuest, isGuest)
     assert.ok(item.id)
   })
 
   it('should create a user with user role', async () => {
     const name = `Test #${Math.random()}`
-    const avatarId = 'CyberbotGreen'
-    const userRole = 'user'
+    const avatarName = 'CyberbotGreen'
+    const isGuest = false
+
+    const avatar = await app.service('avatar').create({
+      name: avatarName
+    })
 
     const item = (await app.service('user').create({
       name,
-      avatarId,
-      userRole
-    })) as User
+      avatarId: avatar.id,
+      isGuest
+    })) as UserInterface
     users.push(item)
 
     assert.equal(item.name, name)
-    assert.equal(item.avatarId, avatarId)
-    assert.equal(item.userRole, userRole)
+    assert.equal(item.avatarId, avatar.id)
+    assert.equal(item.isGuest, isGuest)
     assert.ok(item.id)
   })
 

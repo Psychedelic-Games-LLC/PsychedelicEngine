@@ -16,23 +16,28 @@ export const ProjectState = defineState({
   name: 'ProjectState',
   initial: () => ({
     projects: [] as Array<ProjectInterface>,
-    updateNeeded: true
+    updateNeeded: true,
+    rebuilding: true
   })
 })
 
 export const ProjectServiceReceptor = (action) => {
-  getState(ProjectState).batch((s) => {
-    matches(action)
-      .when(ProjectAction.projectsFetched.matches, (action) => {
-        return s.merge({
-          projects: action.projectResult,
-          updateNeeded: false
-        })
+  const s = getState(ProjectState)
+  matches(action)
+    .when(ProjectAction.projectsFetched.matches, (action) => {
+      return s.merge({
+        projects: action.projectResult,
+        updateNeeded: false
       })
-      .when(ProjectAction.patchedProject.matches, (action) => {
-        return s.merge({ updateNeeded: true })
+    })
+    .when(ProjectAction.reloadStatusFetched.matches, (action) => {
+      return s.merge({
+        rebuilding: action.status
       })
-  })
+    })
+    .when(ProjectAction.patchedProject.matches, (action) => {
+      return s.merge({ updateNeeded: true })
+    })
 }
 
 export const accessProjectState = () => getState(ProjectState)
@@ -50,7 +55,7 @@ export const ProjectService = {
   createProject: async (name: string) => {
     const result = await API.instance.client.service('project').create({ name })
     logger.info({ result }, 'Create project result')
-    dispatchAction(ProjectAction.createdProject())
+    dispatchAction(ProjectAction.createdProject({}))
     await ProjectService.fetchProjects()
   },
 
@@ -58,7 +63,7 @@ export const ProjectService = {
   uploadProject: async (url: string, name?: string) => {
     const result = await API.instance.client.service('project').update({ url, name })
     logger.info({ result }, 'Upload project result')
-    dispatchAction(ProjectAction.postProject())
+    dispatchAction(ProjectAction.postProject({}))
     await ProjectService.fetchProjects()
   },
 
@@ -70,9 +75,22 @@ export const ProjectService = {
   },
 
   // restricted to admin scope
+  checkReloadStatus: async () => {
+    const result = await API.instance.client.service('project-build').find()
+    logger.info({ result }, 'Check reload projects result')
+    dispatchAction(ProjectAction.reloadStatusFetched({ status: result }))
+  },
+
+  // restricted to admin scope
   triggerReload: async () => {
-    const result = await API.instance.client.service('project-build').patch({ rebuild: true })
-    logger.info({ result }, 'Reload project result')
+    try {
+      dispatchAction(ProjectAction.reloadStatusFetched({ status: true }))
+      const result = await API.instance.client.service('project-build').patch({ rebuild: true })
+      logger.info({ result }, 'Reload projects result')
+    } catch (err) {
+      logger.error(err, 'Error reload projects result.')
+      dispatchAction(ProjectAction.reloadStatusFetched({ status: false }))
+    }
   },
 
   // restricted to admin scope
@@ -88,7 +106,8 @@ export const ProjectService = {
   setRepositoryPath: async (id: string, url: string) => {
     try {
       await API.instance.client.service('project').patch(id, {
-        repositoryPath: url
+        repositoryPath: url,
+        needsRebuild: true
       })
     } catch (err) {
       logger.error(err, 'Error setting project repository path')
@@ -161,6 +180,11 @@ export class ProjectAction {
   static projectsFetched = defineAction({
     type: 'PROJECTS_RETRIEVED' as const,
     projectResult: matches.array as Validator<unknown, ProjectInterface[]>
+  })
+
+  static reloadStatusFetched = defineAction({
+    type: 'RELOAD_STATUS_RETRIEVED' as const,
+    status: matches.boolean
   })
 
   static postProject = defineAction({

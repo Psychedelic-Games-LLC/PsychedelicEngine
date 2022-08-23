@@ -9,6 +9,7 @@ import { Op } from 'sequelize'
 import { GITHUB_URL_REGEX } from '@xrengine/common/src/constants/GitHubConstants'
 import { ProjectInterface } from '@xrengine/common/src/interfaces/ProjectInterface'
 import { isDev } from '@xrengine/common/src/utils/isDev'
+import { processFileName } from '@xrengine/common/src/utils/processFileName'
 import templateProjectJson from '@xrengine/projects/template-project/package.json'
 
 import { Application } from '../../../declarations'
@@ -85,7 +86,7 @@ export const uploadLocalProjectToProvider = async (projectName, remove = true) =
         return new Promise(async (resolve) => {
           try {
             const fileResult = fs.readFileSync(file)
-            const filePathRelative = file.slice(projectPath.length)
+            const filePathRelative = processFileName(file.slice(projectPath.length))
             await storageProvider.putObject(
               {
                 Body: fileResult,
@@ -125,7 +126,7 @@ export class Project extends Service {
     ).data as Array<{ name }>
     await Promise.all(
       projects.map(async ({ name }) => {
-        if (!fs.existsSync(path.join(projectsRootFolder, name))) return
+        if (!fs.existsSync(path.join(projectsRootFolder, name, 'xrengine.config.ts'))) return
         const config = await getProjectConfig(name)
         if (config?.onEvent) return onProjectEvent(this.app, name, config.onEvent, 'onLoad')
       })
@@ -138,7 +139,8 @@ export class Project extends Service {
     await super.create({
       thumbnail: projectConfig.thumbnail,
       name: projectName,
-      repositoryPath: getRemoteURLFromGitData(projectName)
+      repositoryPath: getRemoteURLFromGitData(projectName),
+      needsRebuild: true
     })
     // run project install script
     if (projectConfig.onEvent) {
@@ -222,7 +224,8 @@ export class Project extends Service {
       {
         thumbnail: packageData.thumbnail,
         name: projectName,
-        repositoryPath: null
+        repositoryPath: null,
+        needsRebuild: true
       },
       params
     )
@@ -238,7 +241,7 @@ export class Project extends Service {
    * @returns
    */
   // @ts-ignore
-  async update(data: { url: string; name?: string }, placeholder?: null, params?: Params) {
+  async update(data: { url: string; name?: string; needsRebuild?: boolean }, placeholder?: null, params?: Params) {
     if (data.url === 'default-project') {
       copyDefaultProject()
       await uploadLocalProjectToProvider('default-project')
@@ -281,11 +284,14 @@ export class Project extends Service {
           {
             thumbnail: projectConfig.thumbnail,
             name: projectName,
-            repositoryPath: data.url
+            repositoryPath: data.url,
+            needsRebuild: data.needsRebuild ? data.needsRebuild : true
           },
           params || {}
         )
       : existingProjectResult
+
+    returned.needsRebuild = typeof data.needsRebuild === 'boolean' ? data.needsRebuild : true
 
     if (!existingProjectResult) {
       await this.app.service('project-permission').create({
@@ -348,6 +354,29 @@ export class Project extends Service {
 
     logger.info(`[Projects]: removing project id "${id}", name: "${name}".`)
     await deleteProjectFilesInStorageProvider(name)
+
+    const locationItems = await (this.app.service('location') as any).Model.findAll({
+      where: {
+        sceneId: {
+          [Op.like]: `${name}/%`
+        }
+      }
+    })
+    locationItems.length &&
+      locationItems.forEach(async (location) => {
+        await this.app.service('location').remove(location.dataValues.id)
+      })
+
+    const routeItems = await (this.app.service('route') as any).Model.findAll({
+      where: {
+        project: name
+      }
+    })
+    routeItems.length &&
+      routeItems.forEach(async (route) => {
+        await this.app.service('route').remove(route.dataValues.id)
+      })
+
     return super.remove(id, params)
   }
 
@@ -404,7 +433,8 @@ export class Project extends Service {
         projectPushIds = projectPushIds.concat(matchingAllowedRepos.map((repo) => repo.id))
       }
 
-      if (params.user.userRole !== 'admin') params.query.id = { $in: [...new Set(projectPushIds)] }
+      if (!params.user.scopes.find((scope) => scope.type === 'admin:admin'))
+        params.query.id = { $in: [...new Set(projectPushIds)] }
       delete params.query.allowed
       if (!params.sequelize) params.sequelize = { raw: false }
       if (!params.sequelize.include) params.sequelize.include = []
@@ -418,7 +448,7 @@ export class Project extends Service {
       query: {
         ...params?.query,
         $limit: params?.query?.$limit || 1000,
-        $select: params?.query?.$select || ['id', 'name', 'thumbnail', 'repositoryPath']
+        $select: params?.query?.$select || ['id', 'name', 'thumbnail', 'repositoryPath', 'needsRebuild']
       }
     }
 

@@ -2,13 +2,14 @@ import i18n from 'i18next'
 import React from 'react'
 import styled from 'styled-components'
 
+import CircularProgress from '@mui/material/CircularProgress'
+
 import ProgressBar from '../inputs/ProgressBar'
 import Dialog from './Dialog'
 
 /**
  * ProgressContainer used as a wrapper element for the ProgressMessage and ProgressBar components.
  *
- * @author Robert Long
  * @type {Styled component}
  */
 const ProgressContainer = (styled as any).div`
@@ -24,18 +25,29 @@ const ProgressContainer = (styled as any).div`
 /**
  * ProgressMessage used to provide styles to the message content on ProgressDialog.
  *
- * @author Robert Long
  * @type {styled component}
  */
 const ProgressMessage = (styled as any).div`
-  padding-bottom: 24px;
+  margin: auto;
   white-space: pre;
 `
+
+interface Props {
+  cancelable?: boolean
+  message: string
+  tag?
+  title?
+  bottomNav?
+  children?
+  cancelLabel?
+  confirmLabel?
+  onCancel?
+  onConfirm?
+}
 
 /**
  * ProgressDialog component used to render view.
  *
- * @author Robert Long
  * @param       {string} message    [content to be shown on the ProgressDialog]
  * @param       {function} onConfirm
  * @param       {boolean} cancelable
@@ -43,13 +55,14 @@ const ProgressMessage = (styled as any).div`
  * @param       {any} props
  * @constructor
  */
-export function ProgressDialog(props) {
+export function ProgressDialog(props: Props) {
   if (!props) return null
   return (
     <Dialog onCancel={props.cancelable ? props.onCancel : null} {...props}>
       <ProgressContainer>
         <ProgressMessage>{props.message}</ProgressMessage>
-        <ProgressBar />
+        <CircularProgress style={{ margin: 'auto' }} />
+        {/* <ProgressBar /> */}
       </ProgressContainer>
     </Dialog>
   )

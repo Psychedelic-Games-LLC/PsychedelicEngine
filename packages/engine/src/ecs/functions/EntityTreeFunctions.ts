@@ -1,8 +1,13 @@
 import { MathUtils } from 'three'
 
+import { NetworkId } from '@xrengine/common/src/interfaces/NetworkId'
+import { UserId } from '@xrengine/common/src/interfaces/UserId'
+
+import { NetworkObjectComponent } from '../../networking/components/NetworkObjectComponent'
 import { Engine } from '../classes/Engine'
 import { Entity } from '../classes/Entity'
 import EntityTree, { EntityTreeNode } from '../classes/EntityTree'
+import { addComponent, removeAllComponents } from './ComponentFunctions'
 
 // ========== Entity Tree Functions ========== //
 /**
@@ -31,7 +36,7 @@ export function removeFromEntityTreeMaps(node: EntityTreeNode, tree = Engine.ins
  */
 export function initializeEntityTree(world = Engine.instance.currentWorld): void {
   world.entityTree = {
-    rootNode: createEntityNode(-1 as Entity),
+    rootNode: createEntityNode(world.sceneEntity),
     entityNodeMap: new Map(),
     uuidNodeMap: new Map()
   } as EntityTree
@@ -107,11 +112,20 @@ export function emptyEntityTree(tree = Engine.instance.currentWorld.entityTree):
  * @returns Newly created Entity node
  */
 export function createEntityNode(entity: Entity, uuid?: string): EntityTreeNode {
-  return {
-    type: 'EntityNode',
+  const node = {
+    type: 'EntityNode' as const,
     entity,
-    uuid: uuid || MathUtils.generateUUID()
+    uuid: uuid || MathUtils.generateUUID(),
+    children: []
   }
+
+  // addComponent(entity, NetworkObjectComponent, {
+  //   ownerId: Engine.instance.currentWorld._worldHostId,
+  //   networkId: //node.uuid as NetworkId,
+  //   prefab: 'entity_node',
+  //   parameters: null
+  // })
+  return node
 }
 
 /**
@@ -295,12 +309,13 @@ export function isEntityNode(node: any): node is EntityTreeNode {
  * @returns Entity Tree node array obtained from passed Entities.
  */
 export function getEntityNodeArrayFromEntities(
-  entities: Entity[],
+  entities: (Entity | string)[],
   tree = Engine.instance.currentWorld.entityTree
 ): EntityTreeNode[] {
   const arr = [] as EntityTreeNode[]
 
   for (const entity of entities) {
+    if (typeof entity === 'string') continue
     const node = tree.entityNodeMap.get(entity)
     if (node) arr.push(node)
   }

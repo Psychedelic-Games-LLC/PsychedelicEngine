@@ -1,27 +1,31 @@
 import { Paginated, Params } from '@feathersjs/feathers'
 import { SequelizeServiceOptions, Service } from 'feathers-sequelize'
-import _ from 'lodash'
 import { Op } from 'sequelize'
 
-import { AvatarInterface } from '@xrengine/common/src/interfaces/AvatarInterface'
+import { StaticResourceInterface } from '@xrengine/common/src/interfaces/StaticResourceInterface'
 
 import { Application } from '../../../declarations'
+import { getStorageProvider } from '../storageprovider/storageprovider'
 
-export type AvatarDataType = AvatarInterface
+export type CreateStaticResourceType = {
+  name?: string
+  mimeType: string
+  url: string
+  key: string
+  staticResourceType?: string
+  userId?: string
+}
 
-/**
- * A class for Static Resource  service
- *
- * @author Vyacheslav Solovjov
- */
-export class StaticResource<T = AvatarDataType> extends Service<T> {
+export class StaticResource extends Service<StaticResourceInterface> {
   public docs: any
 
   constructor(options: Partial<SequelizeServiceOptions>, app: Application) {
     super(options)
   }
 
-  async create(data, params?: Params): Promise<T> {
+  // @ts-ignore
+  async create(data: CreateStaticResourceType, params?: Params): Promise<StaticResourceInterface> {
+    const self = this
     const oldResource = await this.find({
       query: {
         $select: ['id'],
@@ -32,13 +36,13 @@ export class StaticResource<T = AvatarDataType> extends Service<T> {
     if ((oldResource as any).total > 0) {
       return this.Model.update(data, {
         where: { url: data.url }
-      })
+      }).then(() => self.Model.findOne({ where: { url: data.url } }))
     } else {
       return this.Model.create(data)
     }
   }
 
-  async find(params?: Params): Promise<any> {
+  async find(params?: Params): Promise<StaticResourceInterface[] | Paginated<StaticResourceInterface>> {
     if (params?.query?.getAvatarThumbnails === true) {
       delete params.query.getAvatarThumbnails
       const search = params?.query?.search ?? ''
@@ -84,7 +88,12 @@ export class StaticResource<T = AvatarDataType> extends Service<T> {
     } else return super.find(params)
   }
 
-  async remove(id: string): Promise<T> {
-    return (await super.remove(id)) as T
+  async remove(id: string): Promise<StaticResourceInterface> {
+    const resource = await super.get(id)
+    if (resource.key) {
+      const storageProvider = getStorageProvider()
+      await storageProvider.deleteResources([resource.key])
+    }
+    return (await super.remove(id)) as StaticResourceInterface
   }
 }

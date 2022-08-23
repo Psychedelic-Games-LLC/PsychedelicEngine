@@ -4,15 +4,17 @@ import Hotkeys from 'react-hot-keys'
 import { useTranslation } from 'react-i18next'
 import AutoSizer from 'react-virtualized-auto-sizer'
 import { areEqual, FixedSizeList } from 'react-window'
+import { Object3D } from 'three'
 
 import { AllFileTypes } from '@xrengine/engine/src/assets/constants/fileTypes'
 import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
-import { getComponent } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
+import { getComponent, hasComponent } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
 import {
   getEntityNodeArrayFromEntities,
   traverseEntityNode
 } from '@xrengine/engine/src/ecs/functions/EntityTreeFunctions'
 import { useWorld } from '@xrengine/engine/src/ecs/functions/SystemHooks'
+import { ModelComponent } from '@xrengine/engine/src/scene/components/ModelComponent'
 import { NameComponent } from '@xrengine/engine/src/scene/components/NameComponent'
 import { Object3DComponent } from '@xrengine/engine/src/scene/components/Object3DComponent'
 import { useHookEffect } from '@xrengine/hyperflux'
@@ -24,6 +26,7 @@ import EditorCommands from '../../constants/EditorCommands'
 import { addMediaNode } from '../../functions/addMediaNode'
 import { isAncestor } from '../../functions/getDetachedObjectsRoots'
 import { cmdOrCtrlString } from '../../functions/utils'
+import { useEditorState } from '../../services/EditorServices'
 import { useSelectionState } from '../../services/SelectionServices'
 import useUpload from '../assets/useUpload'
 import { addPrefabElement } from '../element/ElementList'
@@ -36,7 +39,6 @@ import styles from './styles.module.scss'
 /**
  * uploadOption initializing object containing Properties multiple, accepts.
  *
- * @author Robert Long
  * @type {Object}
  */
 const uploadOptions = {
@@ -47,26 +49,63 @@ const uploadOptions = {
 /**
  * getNodeKey function used to get object id at given index.
  *
- * @author Robert Long
  * @param  {number} index [index of the node to get object id]
  * @param  {object} data
  * @return {string}
  */
 function getNodeKey(index: number, data: HierarchyTreeNodeData) {
-  return data.nodes[index].entityNode.entity
+  return index //data.nodes[index].entityNode ? data.nodes[index].entityNode.entity : data.nodes[index].toString()
+}
+
+function traverseWithDepth(obj3d: Object3D, depth: number, cb: Function) {
+  cb(obj3d, depth)
+  for (const obj of obj3d.children) {
+    traverseWithDepth(obj, depth + 1, cb)
+  }
+}
+
+function getModelNodesFromTreeWalker(
+  inputNodes: HeirarchyTreeNodeType[],
+  collapsedNodes: HeirarchyTreeCollapsedNodeType,
+  showObject3Ds: boolean
+): HeirarchyTreeNodeType[] {
+  const outputNodes = [] as HeirarchyTreeNodeType[]
+  for (const node of inputNodes) {
+    outputNodes.push(node)
+    const isCollapsed = collapsedNodes[node.entityNode.entity]
+    if (showObject3Ds && hasComponent(node.entityNode.entity, ModelComponent)) {
+      const obj3d = getComponent(node.entityNode.entity, Object3DComponent)?.value
+      if (!obj3d || obj3d === Engine.instance.currentWorld.scene) continue
+      node.isLeaf = false
+      if (isCollapsed) continue
+      let childIndex = node.childIndex
+      traverseWithDepth(obj3d, node.depth, (obj, depth) => {
+        if (obj === obj3d) return
+        outputNodes.push({
+          depth,
+          obj3d: obj,
+          entityNode: null!,
+          childIndex: childIndex++,
+          lastChild: false,
+          isLeaf: true, //!obj.children.length, // todo, store collapsed state on obj3d
+          isCollapsed: node.isCollapsed,
+          selected: false,
+          active: false
+        })
+      })
+    }
+  }
+  return outputNodes
 }
 
 /**
  * initializing MemoTreeNode.
- *
- * @author Robert Long
  */
 const MemoTreeNode = memo(HierarchyTreeNode, areEqual)
 
 /**
  * HierarchyPanel function component provides view for hierarchy tree.
  *
- * @author Robert Long
  * @constructor
  */
 export default function HierarchyPanel() {
@@ -79,11 +118,13 @@ export default function HierarchyPanel() {
   const nodeSearch: HeirarchyTreeNodeType[] = []
   const [selectedNode, setSelectedNode] = useState<HeirarchyTreeNodeType | null>(null)
   const { searchHierarchy } = useContext(AppContext)
+  const showObject3DInHierarchy = useEditorState().showObject3DInHierarchy
 
   if (searchHierarchy.length > 0) {
     const condition = new RegExp(searchHierarchy.toLowerCase())
     nodes.forEach((node) => {
-      if (condition.test(getComponent(node.entityNode.entity, NameComponent).name.toLowerCase())) nodeSearch.push(node)
+      if (node.entityNode && condition.test(getComponent(node.entityNode.entity, NameComponent).name.toLowerCase()))
+        nodeSearch.push(node)
     })
   }
 
@@ -91,13 +132,17 @@ export default function HierarchyPanel() {
     (world = useWorld()) => {
       if (!world.entityTree) return
       setNodes(
-        Array.from(
-          heirarchyTreeWalker(
-            world.entityTree.rootNode,
-            selectionState.selectedEntities.value,
-            collapsedNodes,
-            world.entityTree
-          )
+        getModelNodesFromTreeWalker(
+          Array.from(
+            heirarchyTreeWalker(
+              world.entityTree.rootNode,
+              selectionState.selectedEntities.value,
+              collapsedNodes,
+              world.entityTree
+            )
+          ),
+          collapsedNodes,
+          showObject3DInHierarchy.value
         )
       )
     },
@@ -105,21 +150,32 @@ export default function HierarchyPanel() {
   )
 
   useEffect(updateNodeHierarchy, [collapsedNodes])
-  useHookEffect(updateNodeHierarchy, [selectionState.selectedEntities, selectionState.sceneGraphChangeCounter])
+  useHookEffect(updateNodeHierarchy, [
+    showObject3DInHierarchy,
+    selectionState.selectedEntities,
+    selectionState.sceneGraphChangeCounter
+  ])
 
   /* Expand & Collapse Functions */
   const expandNode = useCallback(
-    (node: HeirarchyTreeNodeType) => setCollapsedNodes({ ...collapsedNodes, [node.entityNode.entity]: false }),
+    (node: HeirarchyTreeNodeType) => {
+      if (node.obj3d) return // todo
+      setCollapsedNodes({ ...collapsedNodes, [node.entityNode.entity]: false })
+    },
     [collapsedNodes]
   )
 
   const collapseNode = useCallback(
-    (node: HeirarchyTreeNodeType) => setCollapsedNodes({ ...collapsedNodes, [node.entityNode.entity]: true }),
+    (node: HeirarchyTreeNodeType) => {
+      if (node.obj3d) return // todo
+      setCollapsedNodes({ ...collapsedNodes, [node.entityNode.entity]: true })
+    },
     [collapsedNodes]
   )
 
   const expandChildren = useCallback(
     (node: HeirarchyTreeNodeType) => {
+      if (node.obj3d) return // todo
       traverseEntityNode(node.entityNode, (child) => (collapsedNodes[child.entity] = false))
       setCollapsedNodes({ ...collapsedNodes })
     },
@@ -128,6 +184,7 @@ export default function HierarchyPanel() {
 
   const collapseChildren = useCallback(
     (node: HeirarchyTreeNodeType) => {
+      if (node.obj3d) return // todo
       traverseEntityNode(node.entityNode, (child) => (collapsedNodes[child.entity] = true))
       setCollapsedNodes({ ...collapsedNodes })
     },
@@ -150,16 +207,23 @@ export default function HierarchyPanel() {
   const onMouseDown = useCallback((e: MouseEvent, node: HeirarchyTreeNodeType) => {
     if (e.detail === 1) {
       if (e.shiftKey) {
-        executeCommandWithHistory({ type: EditorCommands.TOGGLE_SELECTION, affectedNodes: [node.entityNode] })
+        executeCommandWithHistory({
+          type: EditorCommands.TOGGLE_SELECTION,
+          affectedNodes: [node.entityNode ?? node.obj3d]
+        })
         setSelectedNode(null)
       } else if (!node.selected) {
-        executeCommandWithHistory({ type: EditorCommands.REPLACE_SELECTION, affectedNodes: [node.entityNode] })
+        executeCommandWithHistory({
+          type: EditorCommands.REPLACE_SELECTION,
+          affectedNodes: [node.entityNode ?? node.obj3d]
+        })
         setSelectedNode(node)
       }
     }
   }, [])
 
   const onClick = useCallback((e: MouseEvent, node: HeirarchyTreeNodeType) => {
+    if (node.obj3d) return // todo
     if (e.detail === 2) {
       const cameraComponent = getComponent(Engine.instance.currentWorld.cameraEntity, EditorCameraComponent)
       cameraComponent.focusedObjects = [node.entityNode]
@@ -169,6 +233,7 @@ export default function HierarchyPanel() {
 
   const onToggle = useCallback(
     (_, node: HeirarchyTreeNodeType) => {
+      if (node.obj3d) return // todo
       if (collapsedNodes[node.entityNode.entity]) expandNode(node)
       else collapseNode(node)
     },
@@ -187,7 +252,10 @@ export default function HierarchyPanel() {
           if (!nextNode) return
 
           if (e.shiftKey) {
-            executeCommandWithHistory({ type: EditorCommands.ADD_TO_SELECTION, affectedNodes: [nextNode.entityNode] })
+            executeCommandWithHistory({
+              type: EditorCommands.ADD_TO_SELECTION,
+              affectedNodes: [nextNode.entityNode ?? nextNode.obj3d]
+            })
           }
 
           const nextNodeEl = document.getElementById(getNodeElId(nextNode))
@@ -201,7 +269,10 @@ export default function HierarchyPanel() {
           if (!prevNode) return
 
           if (e.shiftKey) {
-            executeCommandWithHistory({ type: EditorCommands.ADD_TO_SELECTION, affectedNodes: [prevNode.entityNode] })
+            executeCommandWithHistory({
+              type: EditorCommands.ADD_TO_SELECTION,
+              affectedNodes: [prevNode.entityNode ?? prevNode.obj3d]
+            })
           }
 
           const prevNodeEl = document.getElementById(getNodeElId(prevNode))
@@ -209,14 +280,16 @@ export default function HierarchyPanel() {
           break
 
         case 'ArrowLeft':
-          if (!node.entityNode.children || node.entityNode.children.length === 0) return
+          if (node.entityNode && (!node.entityNode.children || node.entityNode.children.length === 0)) return
+          if (node.obj3d && (!node.obj3d.children || node.obj3d.children.length === 0)) return
 
           if (e.shiftKey) collapseChildren(node)
           else collapseNode(node)
           break
 
         case 'ArrowRight':
-          if (!node.entityNode.children || node.entityNode.children.length === 0) return
+          if (node.entityNode && (!node.entityNode.children || node.entityNode.children.length === 0)) return
+          if (node.obj3d && (!node.obj3d.children || node.obj3d.children.length === 0)) return
 
           if (e.shiftKey) expandChildren(node)
           else expandNode(node)
@@ -224,10 +297,16 @@ export default function HierarchyPanel() {
 
         case 'Enter':
           if (e.shiftKey) {
-            executeCommandWithHistory({ type: EditorCommands.TOGGLE_SELECTION, affectedNodes: [node.entityNode] })
+            executeCommandWithHistory({
+              type: EditorCommands.TOGGLE_SELECTION,
+              affectedNodes: [node.entityNode ?? node.obj3d]
+            })
             setSelectedNode(null)
           } else {
-            executeCommandWithHistory({ type: EditorCommands.REPLACE_SELECTION, affectedNodes: [node.entityNode] })
+            executeCommandWithHistory({
+              type: EditorCommands.REPLACE_SELECTION,
+              affectedNodes: [node.entityNode ?? node.obj3d]
+            })
             setSelectedNode(node)
           }
           break
@@ -242,27 +321,35 @@ export default function HierarchyPanel() {
   )
 
   const onDeleteNode = useCallback((_, node: HeirarchyTreeNodeType) => {
-    let objs = node.selected ? getEntityNodeArrayFromEntities(selectionState.selectedEntities.value) : [node.entityNode]
+    let objs = node.selected
+      ? getEntityNodeArrayFromEntities(selectionState.selectedEntities.value)
+      : [node.entityNode ?? node.obj3d]
     executeCommandWithHistory({ type: EditorCommands.REMOVE_OBJECTS, affectedNodes: objs })
   }, [])
 
   const onDuplicateNode = useCallback((_, node: HeirarchyTreeNodeType) => {
-    let objs = node.selected ? getEntityNodeArrayFromEntities(selectionState.selectedEntities.value) : [node.entityNode]
+    let objs = node.selected
+      ? getEntityNodeArrayFromEntities(selectionState.selectedEntities.value)
+      : [node.entityNode ?? node.obj3d]
     executeCommandWithHistory({ type: EditorCommands.DUPLICATE_OBJECTS, affectedNodes: objs })
   }, [])
 
   const onGroupNodes = useCallback((_, node: HeirarchyTreeNodeType) => {
     const objs = node.selected
       ? getEntityNodeArrayFromEntities(selectionState.selectedEntities.value)
-      : [node.entityNode]
+      : [node.entityNode ?? node.obj3d]
     executeCommandWithHistory({ type: EditorCommands.GROUP, affectedNodes: objs })
   }, [])
   /* Event handlers */
 
   /* Rename functions */
   const onRenameNode = useCallback((_, node: HeirarchyTreeNodeType) => {
-    const entity = node.entityNode.entity
-    setRenamingNode({ entity, name: getComponent(entity, NameComponent).name })
+    if (node.entityNode) {
+      const entity = node.entityNode.entity
+      setRenamingNode({ entity, name: getComponent(entity, NameComponent).name })
+    } else {
+      // todo
+    }
   }, [])
 
   const onChangeName = useCallback(
@@ -273,7 +360,7 @@ export default function HierarchyPanel() {
   const onRenameSubmit = useCallback((node: HeirarchyTreeNodeType, name: string) => {
     if (name) {
       setPropertyOnEntityNode({
-        affectedNodes: [node.entityNode],
+        affectedNodes: [node.entityNode ?? node.obj3d],
         component: NameComponent,
         properties: [{ name }]
       })

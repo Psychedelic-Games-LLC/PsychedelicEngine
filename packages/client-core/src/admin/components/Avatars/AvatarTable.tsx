@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AvatarInterface } from '@xrengine/common/src/interfaces/AvatarInterface'
+import { StaticResourceInterface } from '@xrengine/common/src/interfaces/StaticResourceInterface'
 
 import Box from '@mui/material/Box'
 
 import { useAuthState } from '../../../user/services/AuthService'
-import ConfirmModal from '../../common/ConfirmModal'
+import ConfirmDialog from '../../common/ConfirmDialog'
 import TableComponent from '../../common/Table'
 import { avatarColumns, AvatarData } from '../../common/variables/avatar'
 import { AVATAR_PAGE_LIMIT } from '../../services/AvatarService'
@@ -57,17 +58,14 @@ const AvatarTable = ({ className, search }: Props) => {
     AdminAvatarService.fetchAdminAvatars(0, search, sortField, fieldOrder)
   }, [user?.id, search, adminAvatarState.updateNeeded.value])
 
-  const createData = (
-    el: AvatarInterface,
-    sid: string | undefined,
-    name: string | undefined,
-    key: string | undefined
-  ): AvatarData => {
+  const createData = (el: AvatarInterface): AvatarData => {
     return {
       el,
-      sid,
-      name,
-      key,
+      id: el.id,
+      name: el.name as string,
+      thumbnail: (
+        <img style={{ maxHeight: '50px' }} src={el.thumbnailResource?.url + '?' + new Date().getTime()} alt="" />
+      ),
       action: (
         <>
           <a
@@ -78,18 +76,18 @@ const AvatarTable = ({ className, search }: Props) => {
               setOpenAvatarDrawer(true)
             }}
           >
-            <span className={styles.spanWhite}>{t('user:avatar.view')}</span>
+            <span className={styles.spanWhite}>{t('admin:components.common.view')}</span>
           </a>
           <a
             href="#"
             className={styles.actionStyle}
             onClick={() => {
               setAvatarId(el.id)
-              setAvatarName(name as any)
+              setAvatarName(el.name)
               setOpenConfirm(true)
             }}
           >
-            <span className={styles.spanDange}>{t('user:avatar.delete')}</span>
+            <span className={styles.spanDange}>{t('admin:components.common.delete')}</span>
           </a>
         </>
       )
@@ -97,11 +95,11 @@ const AvatarTable = ({ className, search }: Props) => {
   }
 
   const rows = adminAvatars.value.map((el) => {
-    return createData(el, el.sid, el.name, el.key)
+    return createData(el)
   })
 
   const submitRemoveAvatar = async () => {
-    await AdminAvatarService.removeAdminAvatar(avatarId, avatarName)
+    await AdminAvatarService.removeAdminAvatar(avatarId)
     setOpenConfirm(false)
   }
 
@@ -121,7 +119,7 @@ const AvatarTable = ({ className, search }: Props) => {
         handleRowsPerPageChange={handleRowsPerPageChange}
       />
 
-      <ConfirmModal
+      <ConfirmDialog
         open={openConfirm}
         description={`${t('admin:components.avatar.confirmAvatarDelete')} '${avatarName}'?`}
         onClose={() => setOpenConfirm(false)}

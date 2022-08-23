@@ -1,18 +1,19 @@
-import { createState } from '@speigg/hookstate'
+import { createState } from '@hookstate/core'
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
-import { UserAvatar } from '@xrengine/common/src/interfaces/UserAvatar'
+import { AvatarInterface } from '@xrengine/common/src/interfaces/AvatarInterface'
 import { AvatarEffectComponent } from '@xrengine/engine/src/avatar/components/AvatarEffectComponent'
 import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
 import { hasComponent } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
-import { useWorld } from '@xrengine/engine/src/ecs/functions/SystemHooks'
 import { createXRUI } from '@xrengine/engine/src/xrui/functions/createXRUI'
-import { accessWidgetAppState, WidgetAppActions } from '@xrengine/engine/src/xrui/WidgetAppService'
-import { dispatchAction } from '@xrengine/hyperflux'
+import { WidgetAppService } from '@xrengine/engine/src/xrui/WidgetAppService'
+import { WidgetName } from '@xrengine/engine/src/xrui/Widgets'
 
-import { ArrowBackIos, ArrowForwardIos, Check, PersonAdd } from '@mui/icons-material'
+import { ArrowBack, ArrowBackIos, ArrowForwardIos, Check, PersonAdd } from '@mui/icons-material'
 
 import { AuthService, useAuthState } from '../../../user/services/AuthService'
+import XRIconButton from '../../components/XRIconButton'
 import styleString from './index.scss'
 
 export function createSelectAvatarMenu() {
@@ -24,6 +25,8 @@ function createSelectAvatarMenuState() {
 }
 
 const SelectAvatarMenu = () => {
+  const { t } = useTranslation()
+
   const MAX_AVATARS_PER_PAGE = window.innerWidth >= 1024 ? 9 : 12
   const MIN_AVATARS_PER_PAGE = 6
   const getAvatarPerPage = () => (window.innerWidth > 768 ? MAX_AVATARS_PER_PAGE : MIN_AVATARS_PER_PAGE)
@@ -31,7 +34,6 @@ const SelectAvatarMenu = () => {
   const avatarId = authState.user?.avatarId?.value
   const avatarList = authState.avatarList.value
 
-  const userSettings = authState.user.user_setting.value
   const [page, setPage] = useState(0)
   const [imgPerPage, setImgPerPage] = useState(getAvatarPerPage())
   const [selectedAvatar, setSelectedAvatar] = useState<any>('')
@@ -48,10 +50,9 @@ const SelectAvatarMenu = () => {
   }, [authState.avatarList.value])
 
   const setAvatar = (avatarId: string, avatarURL: string, thumbnailURL: string) => {
-    if (hasComponent(useWorld().localClientEntity, AvatarEffectComponent)) return
-    if (authState.user?.value) {
+    if (hasComponent(Engine.instance.currentWorld.localClientEntity, AvatarEffectComponent)) return
+    if (authState.user?.value)
       AuthService.updateUserAvatarId(authState.user.id.value!, avatarId, avatarURL, thumbnailURL)
-    }
   }
 
   const loadNextAvatars = () => {
@@ -67,41 +68,25 @@ const SelectAvatarMenu = () => {
   const confirmAvatar = () => {
     if (selectedAvatar && avatarId != selectedAvatar?.avatar?.name) {
       setAvatar(
-        selectedAvatar?.avatar?.name || '',
-        selectedAvatar?.avatar?.url || '',
-        selectedAvatar['user-thumbnail']?.url || ''
+        selectedAvatar?.id || '',
+        selectedAvatar?.modelResource?.url || '',
+        selectedAvatar?.thumbnailResource?.url || ''
       )
-      setWidgetVisibility('Profile', false)
+      WidgetAppService.setWidgetVisibility(WidgetName.PROFILE, false)
     }
     setSelectedAvatar('')
   }
 
-  const selectAvatar = (avatarResources: UserAvatar) => {
+  const selectAvatar = (avatarResources: AvatarInterface) => {
     setSelectedAvatar(avatarResources)
   }
 
   const openAvatarSelectMenu = (e) => {
-    setWidgetVisibility('UploadAvatar', true)
+    WidgetAppService.setWidgetVisibility(WidgetName.UPLOAD_AVATAR, true)
   }
 
-  const setWidgetVisibility = (widgetName: string, visibility: boolean) => {
-    const widgetState = accessWidgetAppState()
-    const widgets = Object.entries(widgetState.widgets.value).map(([id, widgetState]) => ({
-      id,
-      ...widgetState,
-      ...Engine.instance.currentWorld.widgets.get(id)!
-    }))
-
-    const currentWidget = widgets.find((w) => w.label === widgetName)
-
-    // close currently open widgets until we support multiple widgets being open at once
-    for (let widget of widgets) {
-      if (currentWidget && widget.id !== currentWidget.id) {
-        dispatchAction(WidgetAppActions.showWidget({ id: widget.id, shown: false }))
-      }
-    }
-
-    currentWidget && dispatchAction(WidgetAppActions.showWidget({ id: currentWidget.id, shown: visibility }))
+  const openProfileMenu = (e) => {
+    WidgetAppService.setWidgetVisibility(WidgetName.PROFILE, true)
   }
 
   const renderAvatarList = () => {
@@ -110,14 +95,13 @@ const SelectAvatarMenu = () => {
     const endIndex = Math.min(startIndex + imgPerPage, avatarList.length)
     let index = 0
     for (let i = startIndex; i < endIndex; i++, index++) {
-      const characterAvatar = avatarList[i]!
-      const avatar = characterAvatar.avatar!
+      const avatar = avatarList[i]!
 
       avatarElementList.push(
         <div
           key={avatar.id}
           xr-layer="true"
-          onClick={() => selectAvatar(characterAvatar)}
+          onClick={() => selectAvatar(avatar)}
           className={`paperAvatar ${avatar.name == selectedAvatar?.avatar?.name ? 'selectedAvatar' : ''}
               ${avatar.name == avatarId ? 'activeAvatar' : ''}`}
           style={{
@@ -125,10 +109,10 @@ const SelectAvatarMenu = () => {
             height: '140px',
             width: '170px',
             boxShadow: 'none',
-            backgroundColor: userSettings?.themeMode === 'dark' ? '#1A2027' : '#f1f1f1'
+            backgroundColor: 'var(--mainBackground)'
           }}
         >
-          <img className="avatar" src={characterAvatar['user-thumbnail']?.url || ''} alt={avatar.name} />
+          <img className="avatar" crossOrigin="anonymous" src={avatar.thumbnailResource?.url || ''} alt={avatar.name} />
         </div>
       )
     }
@@ -140,57 +124,59 @@ const SelectAvatarMenu = () => {
     <>
       <style>{styleString}</style>
       <div className="avatarSelectContainer">
+        <div className="avatarHeaderBlock">
+          <XRIconButton
+            size="large"
+            xr-layer="true"
+            className="iconBlock"
+            variant="iconOnly"
+            onClick={openProfileMenu}
+            content={<ArrowBack />}
+          />
+          <h2>{t('user:avatar.title')}</h2>
+        </div>
         <div className="avatarContainer">
           <div className="gridContainer" style={{ margin: 0 }}>
             {renderAvatarList()}
           </div>
         </div>
         <div className="menuContainer">
-          <button
-            type="button"
-            className={`btn btnArrow ${page === 0 ? 'disabled' : ''}`}
+          <XRIconButton
             xr-layer="true"
             onClick={loadPreviousAvatars}
-          >
-            <ArrowBackIos className="size" />
-          </button>
+            disabled={page === 0}
+            content={<ArrowBackIos className="size" />}
+          />
           <div className="innerMenuContainer">
-            <button
-              type="button"
-              color="secondary"
-              className={`btn btnCancel ${
-                selectedAvatar ? (selectedAvatar?.avatar?.name != avatarId ? 'btnDeepColorCancel' : '') : 'disabledBtn'
-              }`}
+            <XRIconButton
               xr-layer="true"
+              backgroundColor="#f87678"
               onClick={() => {
                 setSelectedAvatar('')
               }}
-            >
-              <span style={{ fontSize: '15px', fontWeight: 'bold' }}>X</span>
-            </button>
-            <button
-              type="button"
-              className={`btn btnCheck ${
-                selectedAvatar ? (selectedAvatar?.avatar?.name != avatarId ? 'btnDeepColor' : '') : 'disabledBtn'
-              }`}
-              disabled={selectedAvatar?.avatar?.name == avatarId}
-              onClick={confirmAvatar}
+              disabled={!selectedAvatar}
+              content={<span style={{ fontSize: '15px', fontWeight: 'bold' }}>X</span>}
+            />
+            <XRIconButton
               xr-layer="true"
-            >
-              <Check />
-            </button>
-            <button type="button" className={`btn btnPerson`} onClick={openAvatarSelectMenu} xr-layer="true">
-              <PersonAdd className="size" />
-            </button>
+              backgroundColor="#23af3a"
+              onClick={confirmAvatar}
+              disabled={selectedAvatar?.avatar?.name == avatarId}
+              content={<Check />}
+            />
+            <XRIconButton
+              xr-layer="true"
+              backgroundColor="rgb(255 255 255 / 70%)"
+              onClick={openAvatarSelectMenu}
+              content={<PersonAdd className="size" />}
+            />
           </div>
-          <button
-            type="button"
-            className={`btn btnArrow ${(page + 1) * imgPerPage >= avatarList.length ? 'disabled' : ''}`}
+          <XRIconButton
             xr-layer="true"
             onClick={loadNextAvatars}
-          >
-            <ArrowForwardIos className="size" />
-          </button>
+            disabled={(page + 1) * imgPerPage >= avatarList.length}
+            content={<ArrowForwardIos className="size" />}
+          />
         </div>
       </div>
     </>

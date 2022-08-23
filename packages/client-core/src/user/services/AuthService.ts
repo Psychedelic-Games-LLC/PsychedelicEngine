@@ -1,48 +1,40 @@
 import { Paginated } from '@feathersjs/feathers'
-import { Downgraded } from '@speigg/hookstate'
-// TODO: Decouple this
-// import { endVideoChat, leave } from '@xrengine/engine/src/networking/functions/SocketWebRTCClientFunctions';
+import { Downgraded } from '@hookstate/core'
 import axios from 'axios'
 import i18n from 'i18next'
-import _ from 'lodash'
 import querystring from 'querystring'
 import { useEffect } from 'react'
 import { v1 } from 'uuid'
 
 import { validateEmail, validatePhoneNumber } from '@xrengine/common/src/config'
+import { AuthStrategies } from '@xrengine/common/src/interfaces/AuthStrategies'
 import { AuthUser, AuthUserSeed, resolveAuthUser } from '@xrengine/common/src/interfaces/AuthUser'
-import { AvatarInterface, AvatarProps } from '@xrengine/common/src/interfaces/AvatarInterface'
+import { AvatarInterface } from '@xrengine/common/src/interfaces/AvatarInterface'
 import { IdentityProvider, IdentityProviderSeed } from '@xrengine/common/src/interfaces/IdentityProvider'
-import { resolveUser, resolveWalletUser, User, UserSeed, UserSetting } from '@xrengine/common/src/interfaces/User'
+import {
+  resolveUser,
+  resolveWalletUser,
+  UserInterface,
+  UserSeed,
+  UserSetting
+} from '@xrengine/common/src/interfaces/User'
 import { UserApiKey } from '@xrengine/common/src/interfaces/UserApiKey'
-import { UserAvatar } from '@xrengine/common/src/interfaces/UserAvatar'
+import multiLogger from '@xrengine/common/src/logger'
 import { matches, Validator } from '@xrengine/engine/src/common/functions/MatchesUtils'
-import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
 import { WorldNetworkAction } from '@xrengine/engine/src/networking/functions/WorldNetworkAction'
 import { defineAction, defineState, dispatchAction, getState, useState } from '@xrengine/hyperflux'
 
 import { API } from '../../API'
 import { NotificationService } from '../../common/services/NotificationService'
 import { accessLocationState } from '../../social/services/LocationService'
-import { accessPartyState } from '../../social/services/PartyService'
 import { serverHost } from '../../util/config'
 import { accessStoredLocalState, StoredLocalAction } from '../../util/StoredLocalState'
 import { uploadToFeathersService } from '../../util/upload'
 import { userPatched } from '../functions/userPatched'
 
-const TIMEOUT_INTERVAL = 50 //ms per interval of waiting for authToken to be updated
+const logger = multiLogger.child({ component: 'client-core:AuthService' })
 
-type AuthStrategies = {
-  jwt: Boolean
-  local: Boolean
-  facebook: Boolean
-  github: Boolean
-  google: Boolean
-  linkedin: Boolean
-  twitter: Boolean
-  smsMagicLink: Boolean
-  emailMagicLink: Boolean
-}
+const TIMEOUT_INTERVAL = 50 //ms per interval of waiting for authToken to be updated
 
 //State
 const AuthState = defineState({
@@ -54,7 +46,7 @@ const AuthState = defineState({
     authUser: AuthUserSeed,
     user: UserSeed,
     identityProvider: IdentityProviderSeed,
-    avatarList: [] as Array<UserAvatar>
+    avatarList: [] as Array<AvatarInterface>
   }),
   onCreate: (store, s) => {
     s.attach(() => ({
@@ -69,7 +61,6 @@ const AuthState = defineState({
                   authUser: state.authUser
                 }
               }),
-              undefined,
               store
             )
         }
@@ -79,98 +70,85 @@ const AuthState = defineState({
 })
 
 export const avatarFetchedReceptor = (s: any, action: any) => {
-  const resources = action.avatarList
-  const avatarData = {}
-  for (let resource of resources) {
-    const r = avatarData[(resource as any).name] || {}
-    if (!r) {
-      console.warn(i18n.t('user:avatar.warning-msg'))
-      return
-    }
-    r[(resource as any).staticResourceType] = resource
-    avatarData[(resource as any).name] = r
-  }
-
-  return s.avatarList.set(Object.keys(avatarData).map((key) => avatarData[key]))
+  return s.avatarList.set(action.avatarList)
 }
 
 export const AuthServiceReceptor = (action) => {
-  getState(AuthState).batch((s) => {
-    matches(action)
-      .when(AuthAction.actionProcessing.matches, (action) => {
-        return s.merge({ isProcessing: action.processing, error: '' })
+  const s = getState(AuthState)
+  matches(action)
+    .when(AuthAction.actionProcessing.matches, (action) => {
+      return s.merge({ isProcessing: action.processing, error: '' })
+    })
+    .when(AuthAction.loginUserSuccessAction.matches, (action) => {
+      return s.merge({ authUser: action.authUser })
+    })
+    .when(AuthAction.loadedUserDataAction.matches, (action) => {
+      return s.merge({ isLoggedIn: true, user: action.user })
+    })
+    .when(AuthAction.loginUserErrorAction.matches, (action) => {
+      return s.merge({ error: action.message })
+    })
+    .when(AuthAction.loginUserByGithubSuccessAction.matches, (action) => {
+      return s
+    })
+    .when(AuthAction.loginUserByLinkedinSuccessAction.matches, (action) => {
+      return s
+    })
+    .when(AuthAction.loginUserByGithubErrorAction.matches, (action) => {
+      return s.merge({ error: action.message })
+    })
+    .when(AuthAction.loginUserByLinkedinErrorAction.matches, (action) => {
+      return s.merge({ error: action.message })
+    })
+    .when(AuthAction.registerUserByEmailSuccessAction.matches, (action) => {
+      return s.merge({ identityProvider: action.identityProvider })
+    })
+    .when(AuthAction.registerUserByEmailErrorAction.matches, (action) => {
+      return s
+    })
+    .when(AuthAction.didLogoutAction.matches, () => {
+      return s.merge({ isLoggedIn: false, user: UserSeed, authUser: AuthUserSeed })
+    })
+    .when(AuthAction.didVerifyEmailAction.matches, (action) => {
+      return s.identityProvider.merge({ isVerified: action.result })
+    })
+    .when(StoredLocalAction.restoreLocalData.matches, () => {
+      const stored = accessStoredLocalState().attach(Downgraded).value
+      return s.merge({
+        authUser: stored.authUser,
+        identityProvider: stored.authUser?.identityProvider
       })
-      .when(AuthAction.loginUserSuccessAction.matches, (action) => {
-        return s.merge({ authUser: action.authUser })
-      })
-      .when(AuthAction.loadedUserDataAction.matches, (action) => {
-        return s.merge({ isLoggedIn: true, user: action.user })
-      })
-      .when(AuthAction.loginUserErrorAction.matches, (action) => {
-        return s.merge({ error: action.message })
-      })
-      .when(AuthAction.loginUserByGithubSuccessAction.matches, (action) => {
-        return s
-      })
-      .when(AuthAction.loginUserByLinkedinSuccessAction.matches, (action) => {
-        return s
-      })
-      .when(AuthAction.loginUserByGithubErrorAction.matches, (action) => {
-        return s.merge({ error: action.message })
-      })
-      .when(AuthAction.loginUserByLinkedinErrorAction.matches, (action) => {
-        return s.merge({ error: action.message })
-      })
-      .when(AuthAction.registerUserByEmailSuccessAction.matches, (action) => {
-        return s.merge({ identityProvider: action.identityProvider })
-      })
-      .when(AuthAction.registerUserByEmailErrorAction.matches, (action) => {
-        return s
-      })
-      .when(AuthAction.didLogoutAction.matches, () => {
-        return s.merge({ isLoggedIn: false, user: UserSeed, authUser: AuthUserSeed })
-      })
-      .when(AuthAction.didVerifyEmailAction.matches, (action) => {
-        return s.identityProvider.merge({ isVerified: action.result })
-      })
-      .when(StoredLocalAction.restoreLocalData.matches, () => {
-        const stored = accessStoredLocalState().attach(Downgraded).value
-        return s.merge({
-          authUser: stored.authUser,
-          identityProvider: stored.authUser.identityProvider
-        })
-      })
-      .when(AuthAction.avatarUpdatedAction.matches, (action) => {
-        return s.user.merge({ avatarUrl: action.url })
-      })
-      .when(AuthAction.usernameUpdatedAction.matches, (action) => {
-        return s.user.merge({ name: action.name })
-      })
-      .when(AuthAction.apiKeyUpdatedAction.matches, (action) => {
-        return s.user.merge({ apiKey: action.apiKey })
-      })
-      .when(AuthAction.userAvatarIdUpdatedAction.matches, (action) => {
-        return s.user.merge({ avatarId: action.avatarId })
-      })
-      .when(AuthAction.userUpdatedAction.matches, (action) => {
-        return s.merge({ user: action.user })
-      })
-      .when(AuthAction.userPatchedAction.matches, (action) => {
-        return userPatched(action.params)
-      })
-      .when(AuthAction.updatedUserSettingsAction.matches, (action) => {
-        return s.user.merge({ user_setting: action.data })
-      })
-      .when(AuthAction.updateAvatarListAction.matches, (action) => {
-        return avatarFetchedReceptor(s, action)
-      })
-  })
+    })
+    .when(AuthAction.avatarUpdatedAction.matches, (action) => {
+      return s.user.merge({ avatarUrl: action.url })
+    })
+    .when(AuthAction.usernameUpdatedAction.matches, (action) => {
+      return s.user.merge({ name: action.name })
+    })
+    .when(AuthAction.apiKeyUpdatedAction.matches, (action) => {
+      return s.user.merge({ apiKey: action.apiKey })
+    })
+    .when(AuthAction.userAvatarIdUpdatedAction.matches, (action) => {
+      return s.user.merge({ avatarId: action.avatarId })
+    })
+    .when(AuthAction.userUpdatedAction.matches, (action) => {
+      return s.merge({ user: action.user })
+    })
+    .when(AuthAction.userPatchedAction.matches, (action) => {
+      return userPatched(action.params)
+    })
+    .when(AuthAction.updatedUserSettingsAction.matches, (action) => {
+      return s.user.merge({ user_setting: action.data })
+    })
+    .when(AuthAction.updateAvatarListAction.matches, (action) => {
+      return avatarFetchedReceptor(s, action)
+    })
 }
 
 export const accessAuthState = () => getState(AuthState)
 export const useAuthState = () => useState(accessAuthState())
 
-//Service
+// Service
 export const AuthService = {
   doLoginAuto: async (forceClientAuthReset?: boolean) => {
     try {
@@ -178,13 +156,16 @@ export const AuthService = {
       let accessToken =
         forceClientAuthReset !== true && authData && authData.authUser ? authData.authUser.accessToken : undefined
 
-      if (forceClientAuthReset === true) await API.instance.client.authentication.reset()
-      if (accessToken == null || accessToken.length === 0) {
+      if (forceClientAuthReset === true) {
+        await API.instance.client.authentication.reset()
+      }
+      if (!accessToken) {
         const newProvider = await API.instance.client.service('identity-provider').create({
           type: 'guest',
           token: v1()
         })
         accessToken = newProvider.accessToken
+        console.log(`Created new guest accessToken: ${accessToken}`)
       }
 
       await API.instance.client.authentication.setAccessToken(accessToken as string)
@@ -193,7 +174,7 @@ export const AuthService = {
         res = await API.instance.client.reAuthenticate()
       } catch (err) {
         if (err.className === 'not-found' || (err.className === 'not-authenticated' && err.message === 'jwt expired')) {
-          await dispatchAction(AuthAction.didLogoutAction())
+          await dispatchAction(AuthAction.didLogoutAction({}))
           await API.instance.client.authentication.reset()
           const newProvider = await API.instance.client.service('identity-provider').create({
             type: 'guest',
@@ -203,12 +184,13 @@ export const AuthService = {
           await API.instance.client.authentication.setAccessToken(accessToken as string)
           res = await API.instance.client.reAuthenticate()
         } else {
+          logger.error(err, 'Error re-authenticating')
           throw err
         }
       }
       if (res) {
         if (res['identity-provider']?.id == null) {
-          await dispatchAction(AuthAction.didLogoutAction())
+          await dispatchAction(AuthAction.didLogoutAction({}))
           await API.instance.client.authentication.reset()
           const newProvider = await API.instance.client.service('identity-provider').create({
             type: 'guest',
@@ -223,60 +205,41 @@ export const AuthService = {
         // Should dispatch
         dispatchAction(AuthAction.loginUserSuccessAction({ authUser, message: '' }))
 
-        await AuthService.loadUserData(authUser.identityProvider.userId)
+        await AuthService.loadUserData(authUser.identityProvider?.userId)
       } else {
         console.log('****************')
       }
     } catch (err) {
-      console.log('error on resolving auth user in doLoginAuto, logging out')
-      console.error(err)
-      dispatchAction(AuthAction.didLogoutAction())
+      logger.error(err, 'Error on resolving auth user in doLoginAuto, logging out')
+      dispatchAction(AuthAction.didLogoutAction({}))
 
       // if (window.location.pathname !== '/') {
       //   window.location.href = '/';
       // }
     }
   },
-  loadUserData: (userId: string): any => {
-    return API.instance.client
-      .service('user')
-      .get(userId)
-      .then((res: any) => {
-        if (res.user_setting == null) {
-          return API.instance.client
-            .service('user-settings')
-            .find({
-              query: {
-                userId: userId
-              }
-            })
-            .then((settingsRes: Paginated<UserSetting>) => {
-              if (settingsRes.total === 0) {
-                return API.instance.client
-                  .service('user-settings')
-                  .create({
-                    userId: userId
-                  })
-                  .then((newSettings) => {
-                    res.user_setting = newSettings
+  async loadUserData(userId: string) {
+    try {
+      const client = API.instance.client
+      const res: any = await client.service('user').get(userId)
+      if (!res.user_setting) {
+        const settingsRes = (await client
+          .service('user-settings')
+          .find({ query: { userId: userId } })) as Paginated<UserSetting>
 
-                    return Promise.resolve(res)
-                  })
-              }
-              res.user_setting = settingsRes.data[0]
-              return Promise.resolve(res)
-            })
+        if (settingsRes.total === 0) {
+          res.user_setting = await client.service('user-settings').create({ userId: userId })
+        } else {
+          res.user_setting = settingsRes.data[0]
         }
-        return Promise.resolve(res)
-      })
-      .then((res: any) => {
-        const user = resolveUser(res)
-        dispatchAction(AuthAction.loadedUserDataAction({ user }))
-      })
-      .catch((err: any) => {
-        NotificationService.dispatchNotify(i18n.t('common:error.loading-error'), { variant: 'error' })
-      })
+      }
+      const user = resolveUser(res)
+      dispatchAction(AuthAction.loadedUserDataAction({ user }))
+    } catch (err) {
+      NotificationService.dispatchNotify(i18n.t('common:error.loading-error'), { variant: 'error' })
+    }
   },
+
   loginUserByPassword: async (form: EmailLoginForm) => {
     // check email validation.
     if (!validateEmail(form.email)) {
@@ -297,7 +260,7 @@ export const AuthService = {
       .then((res: any) => {
         const authUser = resolveAuthUser(res)
 
-        if (!authUser.identityProvider.isVerified) {
+        if (!authUser.identityProvider?.isVerified) {
           API.instance.client.logout()
 
           dispatchAction(
@@ -316,21 +279,55 @@ export const AuthService = {
       })
       .finally(() => dispatchAction(AuthAction.actionProcessing({ processing: false })))
   },
-  loginUserByXRWallet: async (wallet: any) => {
+
+  /**
+   * Example vprResult:
+   * {
+   *   "type": "web",
+   *   "dataType": "VerifiablePresentation",
+   *   "data": {
+   *     "presentation": {
+   *       "holder": "did:web:example.com",
+   *       "verifiableCredential": [
+   *       ]
+   *     }
+   *   },
+   *   "options": {
+   *     "recommendedHandlerOrigins: ["https://uniwallet.cloud"]
+   *   }
+   * }
+   * Where `vp` is a VerifiablePresentation containing multiple VCs
+   * (LoginDisplayCredential, UserPreferencesCredential).
+   *
+   * @param vprResult {object} - VPR Query result from a user's wallet.
+   */
+  loginUserByXRWallet: async (vprResult: any) => {
     try {
       dispatchAction(AuthAction.actionProcessing({ processing: true }))
 
-      const credentials: any = parseUserWalletCredentials(wallet)
+      const credentials: any = parseUserWalletCredentials(vprResult)
       console.log(credentials)
 
       const walletUser = resolveWalletUser(credentials)
+      const authUser = {
+        accessToken: '',
+        authentication: { strategy: 'did-auth' },
+        identityProvider: {
+          id: 0,
+          token: '',
+          type: 'chapiWallet',
+          isVerified: true,
+          userId: walletUser.id
+        }
+      }
 
-      //TODO: This is temp until we move completely to XR wallet
+      // TODO: This is temp until we move completely to XR wallet
       const oldId = accessAuthState().user.id.value
       walletUser.id = oldId
 
       // loadXRAvatarForUpdatedUser(walletUser) // TODO
       dispatchAction(AuthAction.loadedUserDataAction({ user: walletUser }))
+      dispatchAction(AuthAction.loginUserSuccessAction({ authUser: authUser, message: '' }))
     } catch (err) {
       dispatchAction(AuthAction.loginUserErrorAction({ message: i18n.t('common:error.login-error') }))
       NotificationService.dispatchNotify(err.message, { variant: 'error' })
@@ -338,6 +335,7 @@ export const AuthService = {
       dispatchAction(AuthAction.actionProcessing({ processing: false }))
     }
   },
+
   loginUserByOAuth: async (service: string, location: any) => {
     dispatchAction(AuthAction.actionProcessing({ processing: true }))
     const token = accessAuthState().authUser.accessToken.value
@@ -356,9 +354,7 @@ export const AuthService = {
     const ipToRemove = ipResult.data.find((ip) => ip.type === service)
     if (ipToRemove) {
       if (ipResult.total === 1) {
-        console.log('show last warning modal')
-        await API.instance.client.service('user').remove(ipToRemove.userId)
-        await AuthService.logoutUser()
+        NotificationService.dispatchNotify('You can not remove your last login method.', { variant: 'warning' })
       } else {
         const otherIp = ipResult.data.find((ip) => ip.type !== service)
         const newToken = await API.instance.client.service('generate-token').create({
@@ -391,7 +387,7 @@ export const AuthService = {
       const authUser = resolveAuthUser(res)
 
       dispatchAction(AuthAction.loginUserSuccessAction({ authUser: authUser, message: '' }))
-      await AuthService.loadUserData(authUser.identityProvider.userId)
+      await AuthService.loadUserData(authUser.identityProvider?.userId)
       dispatchAction(AuthAction.actionProcessing({ processing: false }))
       let timeoutTimer = 0
       // The new JWT does not always get stored in localStorage successfully by this point, and if the user is
@@ -430,8 +426,8 @@ export const AuthService = {
     dispatchAction(AuthAction.actionProcessing({ processing: true }))
     API.instance.client
       .logout()
-      .then(() => dispatchAction(AuthAction.didLogoutAction()))
-      .catch(() => dispatchAction(AuthAction.didLogoutAction()))
+      .then(() => dispatchAction(AuthAction.didLogoutAction({})))
+      .catch(() => dispatchAction(AuthAction.didLogoutAction({})))
       .finally(() => {
         dispatchAction(AuthAction.actionProcessing({ processing: false }))
         AuthService.doLoginAuto(true)
@@ -452,7 +448,7 @@ export const AuthService = {
         window.location.href = '/auth/confirm'
       })
       .catch((err: any) => {
-        console.log('error', err)
+        logger.error(err, 'Error registering user by email')
         dispatchAction(AuthAction.registerUserByEmailErrorAction({ message: err.message }))
         NotificationService.dispatchNotify(err.message, { variant: 'error' })
       })
@@ -498,7 +494,7 @@ export const AuthService = {
   },
   forgotPassword: async (email: string) => {
     dispatchAction(AuthAction.actionProcessing({ processing: true }))
-    console.log('forgotPassword', email)
+    logger.info('forgotPassword event for email "${email}".')
     API.instance.client
       .service('authManagement')
       .create({
@@ -707,18 +703,48 @@ export const AuthService = {
     dispatchAction(AuthAction.avatarUpdatedAction({ url: result.url }))
   },
   uploadAvatarModel: async (avatar: Blob, thumbnail: Blob, avatarName: string, isPublicAvatar?: boolean) => {
-    await uploadToFeathersService('upload-asset', [avatar, thumbnail], {
+    return uploadToFeathersService('upload-asset', [avatar, thumbnail], {
       type: 'user-avatar-upload',
       args: {
         avatarName,
         isPublicAvatar: !!isPublicAvatar
       }
+    }).promise
+  },
+  removeStaticResource: async (id: string) => {
+    return API.instance.client.service('static-resource').remove(id)
+  },
+  patchAvatar: async (avatarId: string, modelResourceId: string, thumbnailResourceId: string, avatarName: string) => {
+    return API.instance.client.service('avatar').patch(avatarId, {
+      modelResourceId: modelResourceId,
+      thumbnailResourceId: thumbnailResourceId,
+      name: avatarName
     })
-    const avatarDetail = (await API.instance.client.service('avatar').get(avatarName)) as AvatarProps
+  },
+  createAvatar: async (model: Blob, thumbnail: Blob, avatarName: string, isPublicAvatar?: boolean) => {
+    const newAvatar = await API.instance.client.service('avatar').create({
+      name: avatarName,
+      isPublicAvatar: isPublicAvatar
+    })
+
+    const uploadResponse = await AuthService.uploadAvatarModel(model, thumbnail, newAvatar.identifierName)
+
+    const patchedAvatar = (await AuthService.patchAvatar(
+      newAvatar.id,
+      uploadResponse[0].id,
+      uploadResponse[1].id,
+      newAvatar.name
+    )) as AvatarInterface
+
     if (!isPublicAvatar) {
       const selfUser = accessAuthState().user
       const userId = selfUser.id.value!
-      AuthService.updateUserAvatarId(userId, avatarName, avatarDetail.avatarURL, avatarDetail.thumbnailURL!)
+      await AuthService.updateUserAvatarId(
+        userId,
+        newAvatar.id,
+        patchedAvatar.modelResource?.url || '',
+        patchedAvatar.thumbnailResource?.url || ''
+      )
     }
   },
   removeAvatar: async (keys: string) => {
@@ -733,18 +759,11 @@ export const AuthService = {
       })
   },
   fetchAvatarList: async () => {
-    const selfUser = accessAuthState().user
-
-    const result = await API.instance.client.service('static-resource').find({
+    const result = (await API.instance.client.service('avatar').find({
       query: {
-        $select: ['id', 'key', 'name', 'url', 'staticResourceType', 'userId'],
-        staticResourceType: {
-          $in: ['avatar', 'user-thumbnail']
-        },
-        $or: [{ userId: selfUser.id.value }, { userId: null }],
         $limit: 1000
       }
-    })
+    })) as Paginated<AvatarInterface>
     dispatchAction(AuthAction.updateAvatarListAction({ avatarList: result.data }))
   },
   updateUsername: async (userId: string, name: string) => {
@@ -773,18 +792,12 @@ export const AuthService = {
               avatarURL,
               thumbnailURL
             }
-          }),
-          Engine.instance.currentWorld.worldNetwork.hostId
+          })
         )
       })
   },
   removeUser: async (userId: string) => {
     await API.instance.client.service('user').remove(userId)
-    await API.instance.client.service('identity-provider').remove(null, {
-      query: {
-        userId: userId
-      }
-    })
     AuthService.logoutUser()
   },
 
@@ -797,20 +810,12 @@ export const AuthService = {
       const userPatchedListener = (params) => dispatchAction(AuthAction.userPatchedAction({ params }))
       const locationBanCreatedListener = async (params) => {
         const selfUser = accessAuthState().user
-        const party = accessPartyState().party.value
-        const selfPartyUser =
-          party && party.partyUsers
-            ? party.partyUsers.find((partyUser) => partyUser.id === selfUser.id.value)
-            : ({} as any)
         const currentLocation = accessLocationState().currentLocation.location
         const locationBan = params.locationBan
         if (selfUser.id.value === locationBan.userId && currentLocation.id.value === locationBan.locationId) {
           // TODO: Decouple and reenable me!
           // endVideoChat({ leftParty: true });
           // leave(true);
-          if (selfPartyUser != undefined && selfPartyUser?.id != null) {
-            await API.instance.client.service('party-user').remove(selfPartyUser.id)
-          }
           const userId = selfUser.id.value ?? ''
           const user = resolveUser(await API.instance.client.service('user').get(userId))
           dispatchAction(AuthAction.userUpdatedAction({ user }))
@@ -828,15 +833,31 @@ export const AuthService = {
   }
 }
 
-const parseUserWalletCredentials = (wallet) => {
+/**
+ * @param vprResult {any} See `loginUserByXRWallet()`'s docstring.
+ */
+function parseUserWalletCredentials(vprResult: any) {
+  console.log('PARSING:', vprResult)
+
+  const {
+    data: { presentation: vp }
+  } = vprResult
+  const credentials = Array.isArray(vp.verifiableCredential) ? vp.verifiableCredential : [vp.verifiableCredential]
+
+  const displayName = parseDisplayName(credentials)
+
   return {
     user: {
-      id: 'did:web:example.com',
-      displayName: 'alice',
+      id: vp.holder || 'did:web:example.com',
+      displayName,
       icon: 'https://material-ui.com/static/images/avatar/1.jpg'
       // session // this will contain the access token and helper methods
     }
   }
+}
+
+function parseDisplayName(credentials) {
+  return 'Wallet User'
 }
 
 // Action
@@ -937,7 +958,7 @@ export class AuthAction {
 
   static loadedUserDataAction = defineAction({
     type: 'LOADED_USER_DATA' as const,
-    user: matches.object as Validator<unknown, User>
+    user: matches.object as Validator<unknown, UserInterface>
   })
 
   static updatedUserSettingsAction = defineAction({
@@ -967,7 +988,7 @@ export class AuthAction {
 
   static userUpdatedAction = defineAction({
     type: 'USER_UPDATED' as const,
-    user: matches.object as Validator<unknown, User>
+    user: matches.object as Validator<unknown, UserInterface>
   })
 
   static updateAvatarListAction = defineAction({

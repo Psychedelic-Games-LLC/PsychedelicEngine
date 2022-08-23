@@ -1,9 +1,13 @@
-import { State } from '@speigg/hookstate'
+import { State } from '@hookstate/core'
 import * as bitECS from 'bitecs'
 import { ArrayByType, ISchema, Type } from 'bitecs'
 
+import multiLogger from '@xrengine/common/src/logger'
+
 import { Engine } from '../classes/Engine'
 import { Entity } from '../classes/Entity'
+
+const logger = multiLogger.child({ component: 'engine:ecs:ComponentFunctions' })
 
 const INITIAL_COMPONENT_SIZE = 1000 // TODO set to 0 after next bitECS update
 bitECS.setDefaultSize(1000)
@@ -233,7 +237,18 @@ export const getComponent = <T, S extends bitECS.ISchema>(
   return null!
 }
 
-export const addComponent = <T, S extends bitECS.ISchema>(
+/**
+ * Set a component on an entity. If the component already exists, it will be overwritten.
+ * Unlike calling removeComponent followed by addComponent, entry queue will not be rerun.
+ *
+ * @param entity
+ * @param component
+ * @param args
+ * @param world
+ *
+ * @returns the component
+ */
+export const setComponent = <T, S extends bitECS.ISchema>(
   entity: Entity,
   component: MappedComponent<T, S>,
   args: T,
@@ -245,7 +260,6 @@ export const addComponent = <T, S extends bitECS.ISchema>(
   if (typeof world === 'undefined' || world === null) {
     throw new Error('[addComponent]: world is undefined')
   }
-  if (hasComponent(entity, component, world)) throw new Error(`${component._name} already exists on entity ${entity}`)
   bitECS.addComponent(world, component, entity, false) // don't clear data on-add
   if ((component as any)._schema) {
     for (const [key] of Object.entries((component as any)._schema as any)) {
@@ -254,6 +268,24 @@ export const addComponent = <T, S extends bitECS.ISchema>(
   }
   component.set(entity, args as T & SoAProxy<S>)
   return component.get(entity)
+}
+
+/**
+ * Like `setComponent`, but throws an error if the component already exists.
+ * @param entity
+ * @param component
+ * @param args
+ * @param world
+ * @returns
+ */
+export const addComponent = <T, S extends bitECS.ISchema>(
+  entity: Entity,
+  component: MappedComponent<T, S>,
+  args: T,
+  world = Engine.instance.currentWorld
+) => {
+  if (hasComponent(entity, component, world)) throw new Error(`${component._name} already exists on entity ${entity}`)
+  return setComponent(entity, component, args, world)
 }
 
 export const hasComponent = <T, S extends bitECS.ISchema>(
@@ -326,7 +358,7 @@ export const removeAllComponents = (entity: Entity, world = Engine.instance.curr
       removeComponent(entity, component as MappedComponent<any, any>, world)
     }
   } catch (_) {
-    console.warn('Components of entity already removed')
+    logger.warn('Components of entity already removed')
   }
 }
 
@@ -343,3 +375,6 @@ export function defineQuery(components: (bitECS.Component | bitECS.QueryModifier
 export type Query = ReturnType<typeof defineQuery>
 
 export const EntityRemovedComponent = createMappedComponent<{}>('EntityRemovedComponent')
+
+globalThis.XRE_getComponent = getComponent
+globalThis.XRE_getAllComponents = getAllComponents

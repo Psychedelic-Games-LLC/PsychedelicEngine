@@ -7,8 +7,6 @@ import {
   Box3,
   DoubleSide,
   Group,
-  Material,
-  Matrix4,
   Mesh,
   MeshBasicMaterial,
   Object3D,
@@ -23,11 +21,7 @@ import { AssetLoader } from '../../assets/classes/AssetLoader'
 import { AssetType } from '../../assets/enum/AssetType'
 import { AnimationManager } from '../../avatar/AnimationManager'
 import { LoopAnimationComponent } from '../../avatar/components/LoopAnimationComponent'
-import { OBCType } from '../../common/constants/OBCTypes'
 import { isClient } from '../../common/functions/isClient'
-import { addOBCPlugin } from '../../common/functions/OnBeforeCompilePlugin'
-import { insertAfterString, insertBeforeString } from '../../common/functions/string'
-import { Engine } from '../../ecs/classes/Engine'
 import { Entity } from '../../ecs/classes/Entity'
 import { addComponent, getComponent, hasComponent, removeComponent } from '../../ecs/functions/ComponentFunctions'
 import { VelocityComponent } from '../../physics/components/VelocityComponent'
@@ -46,14 +40,14 @@ import { AvatarAnimationComponent } from '../components/AvatarAnimationComponent
 import { AvatarComponent } from '../components/AvatarComponent'
 import { AvatarControllerComponent } from '../components/AvatarControllerComponent'
 import { AvatarEffectComponent, MaterialMap } from '../components/AvatarEffectComponent'
-import { AvatarHeadDecapComponent } from '../components/AvatarHeadDecapComponent'
 import { AvatarPendingComponent } from '../components/AvatarPendingComponent'
 import { defaultBonesData } from '../DefaultSkeletonBones'
 import { DissolveEffect } from '../DissolveEffect'
 import { SkeletonUtils } from '../SkeletonUtils'
 import { resizeAvatar } from './resizeAvatar'
 
-const vec3 = new Vector3()
+const tempVec3ForHeight = new Vector3()
+const tempVec3ForCenter = new Vector3()
 
 export const loadAvatarModelAsset = async (avatarURL: string) => {
   const model = await AssetLoader.loadAsync(avatarURL)
@@ -102,10 +96,6 @@ export const setupAvatarForUser = (entity: Entity, model: Object3D) => {
 
   setupAvatarModel(entity)(model)
   setupAvatarHeight(entity, model)
-
-  if (entity === Engine.instance.currentWorld.localClientEntity) {
-    addComponent(entity, AvatarHeadDecapComponent, { opacity: 1, ready: false })
-  }
 
   const avatarMaterials = setupAvatarMaterials(entity, model)
 
@@ -163,6 +153,8 @@ export const rigAvatarModel = (entity: Entity) => (model: Object3D) => {
   retargetSkeleton(targetSkeleton, sourceSkeleton)
   syncModelSkeletons(model, targetSkeleton)
 
+  avatarAnimationComponent.bindRig = avatarBoneMatching(SkeletonUtils.clone(rootBone))
+
   const targetHips = avatarAnimationComponent.rig.Hips
   const sourceHips = sourceSkeleton.bones[0]
   avatarAnimationComponent.rootYRatio = targetHips.position.y / sourceHips.position.y
@@ -173,7 +165,6 @@ export const rigAvatarModel = (entity: Entity) => (model: Object3D) => {
 export const animateAvatarModel = (entity: Entity) => (model: Object3D) => {
   const animationComponent = getComponent(entity, AnimationComponent)
   const avatarAnimationComponent = getComponent(entity, AvatarAnimationComponent)
-  const velocityComponent = getComponent(entity, VelocityComponent)
   const controllerComponent = getComponent(entity, AvatarControllerComponent)
 
   animationComponent.mixer?.stopAllAction()
@@ -181,12 +172,13 @@ export const animateAvatarModel = (entity: Entity) => (model: Object3D) => {
   // We have to bind the mixer with original skeleton and copy resulting bone transforms after update
   const sourceSkeleton = makeDefaultSkinnedMesh().skeleton
   animationComponent.mixer = new AnimationMixer(sourceSkeleton.bones[0])
+  animationComponent.animations = AnimationManager.instance._animations
 
   if (avatarAnimationComponent)
     avatarAnimationComponent.animationGraph = createAvatarAnimationGraph(
       entity,
       animationComponent.mixer,
-      velocityComponent.linear,
+      avatarAnimationComponent.locomotion,
       controllerComponent ?? {}
     )
 
@@ -197,7 +189,6 @@ export const animateAvatarModel = (entity: Entity) => (model: Object3D) => {
 export const animateModel = (entity: Entity) => {
   const component = getComponent(entity, LoopAnimationComponent)
   const animationComponent = getComponent(entity, AnimationComponent)
-  animationComponent.animations = AnimationManager.instance._animations
 
   if (component.action) component.action.stop()
   component.action = animationComponent.mixer
@@ -226,13 +217,14 @@ export const setupAvatarMaterials = (entity, root) => {
 
 export const setupAvatarHeight = (entity: Entity, model: Object3D) => {
   const box = new Box3()
-  box.expandByObject(model).getSize(vec3)
-  resizeAvatar(entity, Math.max(vec3.x, vec3.y, vec3.z))
+  box.expandByObject(model).getSize(tempVec3ForHeight)
+  box.getCenter(tempVec3ForCenter)
+  resizeAvatar(entity, tempVec3ForHeight.y, tempVec3ForCenter)
 }
 
-export const loadGrowingEffectObject = (entity: Entity, originalMatList: Array<MaterialMap>) => {
-  const textureLight = AssetLoader.getFromCache('/itemLight.png')
-  const texturePlate = AssetLoader.getFromCache('/itemPlate.png')
+export const loadGrowingEffectObject = async (entity: Entity, originalMatList: Array<MaterialMap>) => {
+  const textureLight = await AssetLoader.loadAsync('/itemLight.png')
+  const texturePlate = await AssetLoader.loadAsync('/itemPlate.png')
 
   const lightMesh = new Mesh(
     new PlaneGeometry(0.04, 3.2),
@@ -319,149 +311,6 @@ export function makeSkinnedMeshFromBoneData(bonesData): SkinnedMesh {
   group.add(hipBone)
 
   return skinnedMesh
-}
-
-export function setupEntityHeadDecap(entity: Entity) {
-  const animationComponent = getComponent(entity, AvatarAnimationComponent)
-  const headBone = animationComponent.rig.Head
-  const model = getComponent(entity, Object3DComponent).value
-
-  model.traverse((child: any) => {
-    if (!child.isSkinnedMesh || !child.material) return
-    const material = child.material
-    setupHeadDecap(child, headBone, material)
-  })
-}
-
-/**
- * Adds required parameters to mesh's material
- * to enable avatar's head decapitation (opacity fade)
- * @param model
- * @param material
- */
-export function setupHeadDecap(object: any, headBone: any | undefined, material: Material) {
-  // Create a copy of the mesh to hide 'internal' polygons when opacity is below 1
-  if (material.opacity > 0) {
-    const mesh = object.getObjectByProperty('type', 'SkinnedMesh') as SkinnedMesh
-    const skinnedMeshMask = SkeletonUtils.clone(object).getObjectByProperty('type', 'SkinnedMesh') as SkinnedMesh
-    mesh.parent?.add(skinnedMeshMask)
-    skinnedMeshMask.skeleton = mesh.skeleton
-    skinnedMeshMask.bindMatrix = mesh.bindMatrix
-    skinnedMeshMask.bindMatrixInverse = mesh.bindMatrixInverse
-    skinnedMeshMask.material = new MeshBasicMaterial({ skinning: true, colorWrite: false } as any)
-    skinnedMeshMask.name = skinnedMeshMask.name + '_Mask'
-    skinnedMeshMask.renderOrder = 1
-    ;(mesh.material as any).depthWrite = false
-  }
-
-  const bones = object.skeleton.bones
-  const bonesIndexes = getBoneChildrenIndexes(bones, headBone)
-  const bonesToFade = new Matrix4()
-  bonesToFade.elements.fill(-1)
-  const loopLength = Math.min(bonesToFade.elements.length, bonesIndexes.length)
-
-  for (let i = 0; i < loopLength; i++) {
-    bonesToFade.elements[i] = bonesIndexes[i]
-  }
-
-  addBoneOpacityParamsToMaterial(material, bonesToFade)
-}
-
-/**
- * Returns list of a bone's child indexes in bones list
- * including the starting bone
- * @param bones list of bones to search
- * @param startingBone bone to find childrend index from
- * @returns
- */
-function getBoneChildrenIndexes(bones: Object3D[], startingBone: Object3D): number[] {
-  const indexes: number[] = []
-
-  startingBone.traverse((c) => {
-    indexes.push(bones.findIndex((b) => c.name === b.name))
-  })
-
-  return indexes
-}
-
-/**
- * Adds opacity setting to a material based on single bone
- *
- * @param material
- * @param boneIndexes
- */
-export function addBoneOpacityParamsToMaterial(material, boneIndexes: Matrix4) {
-  material.transparent = true
-  addOBCPlugin(material, {
-    id: OBCType.AVATAR,
-    compile: (shader) => {
-      shader.uniforms.boneIndexToFade = { value: boneIndexes }
-      shader.uniforms.boneOpacity = { value: 1.0 }
-
-      // Vertex Uniforms
-      const vertexUniforms = `uniform mat4 boneIndexToFade;
-        varying float vSelectedBone;`
-
-      shader.vertexShader = insertBeforeString(shader.vertexShader, 'varying vec3 vViewPosition;', vertexUniforms)
-
-      shader.vertexShader = insertAfterString(
-        shader.vertexShader,
-        '#include <skinning_vertex>',
-        `
-        vSelectedBone = 0.0;
-
-        for(float i=0.0; i<16.0 && vSelectedBone == 0.0; i++){
-            int x = int(i/4.0);
-            int y = int(mod(i,4.0));
-            float boneIndex = boneIndexToFade[x][y];
-            if(boneIndex < 0.0) continue;
-
-            for(int j=0; j<4; j++){
-                if(skinIndex[j] == boneIndex){
-                    vSelectedBone = 1.0;
-                    break;
-                }
-            }
-        }
-        `
-      )
-
-      // Fragment Uniforms
-      const fragUniforms = `varying float vSelectedBone;
-        uniform float boneOpacity;
-        `
-
-      shader.fragmentShader = insertBeforeString(shader.fragmentShader, 'uniform vec3 diffuse;', fragUniforms)
-
-      shader.fragmentShader = insertAfterString(
-        shader.fragmentShader,
-        'vec4 diffuseColor = vec4( diffuse, opacity );',
-        `if(vSelectedBone > 0.0){
-            diffuseColor.a = opacity * boneOpacity;
-            if (boneOpacity == 0.0) {
-              discard;
-            }
-        }
-        `
-      )
-
-      material.userData.shader = shader
-    }
-  })
-}
-
-export const setAvatarHeadOpacity = (entity: Entity, opacity: number): void => {
-  const object3DComponent = getComponent(entity, Object3DComponent)
-  object3DComponent?.value.traverse((obj) => {
-    if (!(obj as SkinnedMesh).isSkinnedMesh) return
-    const material = (obj as SkinnedMesh).material as Material
-    if (!material.userData?.shader) return
-    const shader = material.userData.shader
-    if (shader?.uniforms) {
-      shader.uniforms.boneOpacity.value = opacity
-    }
-    material.transparent = opacity != 0
-  })
 }
 
 export const getAvatarBoneWorldPosition = (entity: Entity, boneName: BoneNames, position: Vector3): boolean => {

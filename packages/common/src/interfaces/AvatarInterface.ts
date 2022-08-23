@@ -1,16 +1,11 @@
-export interface AvatarInterface {
-  id: string
-  sid?: string
-  key?: string
-  name?: string
-  url?: string
-  staticResourceType?: string
-  userId: string
-  description?: string
-}
+import { StaticResourceInterface } from './StaticResourceInterface'
 
-export type AvatarProps = {
-  avatarId?: string
-  avatarURL: string
-  thumbnailURL?: string
+export type AvatarInterface = {
+  id: string
+  name: string
+  modelResourceId: string
+  thumbnailResourceId: string
+  identifierName: string
+  modelResource?: StaticResourceInterface
+  thumbnailResource?: StaticResourceInterface
 }

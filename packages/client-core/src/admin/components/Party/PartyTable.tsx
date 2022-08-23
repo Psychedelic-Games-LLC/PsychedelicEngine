@@ -6,7 +6,7 @@ import { Party } from '@xrengine/common/src/interfaces/Party'
 import Box from '@mui/material/Box'
 
 import { useAuthState } from '../../../user/services/AuthService'
-import ConfirmModal from '../../common/ConfirmModal'
+import ConfirmDialog from '../../common/ConfirmDialog'
 import TableComponent from '../../common/Table'
 import { partyColumns, PartyData, PartyPropsTable } from '../../common/variables/party'
 import { AdminPartyService, PARTY_PAGE_LIMIT, usePartyState } from '../../services/PartyService'
@@ -18,10 +18,9 @@ const PartyTable = ({ className, search }: PartyPropsTable) => {
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(PARTY_PAGE_LIMIT)
   const [openConfirm, setOpenConfirm] = useState(false)
-  const [partyName, setPartyName] = useState('')
   const [partyId, setPartyId] = useState('')
   const [fieldOrder, setFieldOrder] = useState('asc')
-  const [sortField, setSortField] = useState('location')
+  const [sortField, setSortField] = useState('maxMembers')
   const [openPartyDrawer, setOpenPartyDrawer] = useState(false)
   const [partyAdmin, setPartyAdmin] = useState<Party>()
 
@@ -62,27 +61,25 @@ const PartyTable = ({ className, search }: PartyPropsTable) => {
     setOpenPartyDrawer(false)
   }
 
-  const createData = (el: Party, id: string, instance: any, location: any): PartyData => {
+  const createData = (el: Party, id: string, maxMembers: any): PartyData => {
     return {
       el,
       id,
-      instance,
-      location,
+      maxMembers,
       action: (
         <>
           <a href="#" className={styles.actionStyle} onClick={() => handleOpenPartyDrawer(true, el)}>
-            <span className={styles.spanWhite}>{t('admin:components.index.view')}</span>
+            <span className={styles.spanWhite}>{t('admin:components.common.view')}</span>
           </a>
           <a
             href="#"
             className={styles.actionStyle}
             onClick={() => {
-              setPartyName(instance)
               setPartyId(id)
               setOpenConfirm(true)
             }}
           >
-            <span className={styles.spanDange}>{t('admin:components.index.delete')}</span>
+            <span className={styles.spanDange}>{t('admin:components.common.delete')}</span>
           </a>
         </>
       )
@@ -98,8 +95,7 @@ const PartyTable = ({ className, search }: PartyPropsTable) => {
     return createData(
       el,
       el.id!,
-      el?.instance?.ipAddress || <span className={styles.spanNone}>{t('admin:components.index.none')}</span>,
-      el.location?.name || <span className={styles.spanNone}>{t('admin:components.index.none')}</span>
+      el.maxMembers || <span className={styles.spanNone}>{t('admin:components.common.none')}</span>
     )
   })
 
@@ -118,9 +114,9 @@ const PartyTable = ({ className, search }: PartyPropsTable) => {
         handlePageChange={handlePageChange}
         handleRowsPerPageChange={handleRowsPerPageChange}
       />
-      <ConfirmModal
+      <ConfirmDialog
         open={openConfirm}
-        description={`${t('admin:components.party.confirmPartyDelete')} '${partyName}'?`}
+        description={`${t('admin:components.party.confirmPartyDelete')}`}
         onClose={() => setOpenConfirm(false)}
         onSubmit={submitRemoveParty}
       />

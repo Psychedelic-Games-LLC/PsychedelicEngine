@@ -1,20 +1,20 @@
 import { Paginated } from '@feathersjs/feathers'
 
-import { CreateEditUser, User, UserSeed } from '@xrengine/common/src/interfaces/User'
+import { CreateEditUser, UserInterface, UserSeed } from '@xrengine/common/src/interfaces/User'
 import { matches, Validator } from '@xrengine/engine/src/common/functions/MatchesUtils'
 import { defineAction, defineState, dispatchAction, getState, useState } from '@xrengine/hyperflux'
 
 import { API } from '../../API'
 import { NotificationService } from '../../common/services/NotificationService'
-import { accessAuthState } from '../../user/services/AuthService'
+import { accessAuthState, AuthService } from '../../user/services/AuthService'
 
 //State
 export const USER_PAGE_LIMIT = 10
 const AdminUserState = defineState({
   name: 'AdminUserState',
   initial: () => ({
-    users: [] as Array<User>,
-    singleUser: UserSeed as User,
+    users: [] as Array<UserInterface>,
+    singleUser: UserSeed as UserInterface,
     skip: 0,
     limit: USER_PAGE_LIMIT,
     total: 0,
@@ -22,7 +22,6 @@ const AdminUserState = defineState({
     fetched: false,
     updateNeeded: true,
     skipGuests: false,
-    userRole: null! as string,
     lastFetched: 0
   })
 })
@@ -83,18 +82,9 @@ const setSkipGuestsReceptor = (action: typeof AdminUserActions.setSkipGuests.mat
   })
 }
 
-const setUserRoleReceptor = (action: typeof AdminUserActions.setUserRole.matches._TYPE) => {
-  const state = getState(AdminUserState)
-  return state.merge({
-    userRole: action.userRole,
-    updateNeeded: true
-  })
-}
-
 const resetFilterReceptor = (action: typeof AdminUserActions.resetFilter.matches._TYPE) => {
   const state = getState(AdminUserState)
   return state.merge({
-    userRole: null!,
     skipGuests: false,
     updateNeeded: true
   })
@@ -108,7 +98,6 @@ export const AdminUserReceptors = {
   userPatchedReceptor,
   searchedUserReceptor,
   setSkipGuestsReceptor,
-  setUserRoleReceptor,
   resetFilterReceptor
 }
 
@@ -123,7 +112,6 @@ export const AdminUserService = {
       const result = await API.instance.client.service('user').get(id)
       dispatchAction(AdminUserActions.fetchedSingleUser({ data: result }))
     } catch (err) {
-      console.log(err)
       NotificationService.dispatchNotify(err.message, { variant: 'error' })
     }
   },
@@ -131,9 +119,8 @@ export const AdminUserService = {
     const userState = accessUserState()
     const user = accessAuthState().user
     const skipGuests = userState.skipGuests.value
-    const userRole = userState.userRole.value
     try {
-      if (user.userRole.value === 'admin') {
+      if (user.scopes?.value?.find((scope) => scope.type === 'admin:admin')) {
         let sortData = {}
 
         if (sortField.length > 0) {
@@ -152,16 +139,9 @@ export const AdminUserService = {
           }
         }
         if (skipGuests) {
-          ;(params.query as any).userRole = {
-            $ne: 'guest'
-          }
+          ;(params.query as any).isGuest = false
         }
-        if (userRole) {
-          ;(params.query as any).userRole = {
-            $eq: userRole
-          }
-        }
-        const userResult = (await API.instance.client.service('user').find(params)) as Paginated<User>
+        const userResult = (await API.instance.client.service('user').find(params)) as Paginated<UserInterface>
         dispatchAction(AdminUserActions.loadedUsers({ userResult }))
       }
     } catch (err) {
@@ -170,23 +150,23 @@ export const AdminUserService = {
   },
   createUser: async (user: CreateEditUser) => {
     try {
-      const result = (await API.instance.client.service('user').create(user)) as User
+      const result = (await API.instance.client.service('user').create(user)) as UserInterface
       dispatchAction(AdminUserActions.userCreated({ user: result }))
     } catch (err) {
-      console.log(err)
       NotificationService.dispatchNotify(err.message, { variant: 'error' })
     }
   },
   patchUser: async (id: string, user: CreateEditUser) => {
     try {
-      const result = (await API.instance.client.service('user').patch(id, user)) as User
+      const result = (await API.instance.client.service('user').patch(id, user)) as UserInterface
       dispatchAction(AdminUserActions.userPatched({ user: result }))
+      if (id === accessAuthState().user.id.value) await AuthService.loadUserData(id)
     } catch (err) {
       NotificationService.dispatchNotify(err.message, { variant: 'error' })
     }
   },
   removeUserAdmin: async (id: string) => {
-    const result = (await API.instance.client.service('user').remove(id)) as User
+    const result = (await API.instance.client.service('user').remove(id)) as UserInterface
     dispatchAction(AdminUserActions.userAdminRemoved({ data: result }))
   },
   searchUserAction: async (data: any) => {
@@ -204,7 +184,7 @@ export const AdminUserService = {
           action: 'search',
           data
         }
-      })) as Paginated<User>
+      })) as Paginated<UserInterface>
       dispatchAction(AdminUserActions.searchedUser({ userResult }))
     } catch (err) {
       NotificationService.dispatchNotify(err.message, { variant: 'error' })
@@ -213,11 +193,8 @@ export const AdminUserService = {
   setSkipGuests: async (skipGuests: boolean) => {
     dispatchAction(AdminUserActions.setSkipGuests({ skipGuests }))
   },
-  setUserRole: async (userRole: string) => {
-    dispatchAction(AdminUserActions.setUserRole({ userRole }))
-  },
   resetFilter: () => {
-    dispatchAction(AdminUserActions.resetFilter())
+    dispatchAction(AdminUserActions.resetFilter({}))
   }
 }
 
@@ -225,42 +202,37 @@ export const AdminUserService = {
 export class AdminUserActions {
   static fetchedSingleUser = defineAction({
     type: 'SINGLE_USER_ADMIN_LOADED' as const,
-    data: matches.object as Validator<unknown, User>
+    data: matches.object as Validator<unknown, UserInterface>
   })
 
   static loadedUsers = defineAction({
     type: 'ADMIN_LOADED_USERS' as const,
-    userResult: matches.object as Validator<unknown, Paginated<User>>
+    userResult: matches.object as Validator<unknown, Paginated<UserInterface>>
   })
 
   static userCreated = defineAction({
     type: 'USER_ADMIN_CREATED' as const,
-    user: matches.object as Validator<unknown, User>
+    user: matches.object as Validator<unknown, UserInterface>
   })
 
   static userPatched = defineAction({
     type: 'USER_ADMIN_PATCHED' as const,
-    user: matches.object as Validator<unknown, User>
+    user: matches.object as Validator<unknown, UserInterface>
   })
 
   static userAdminRemoved = defineAction({
     type: 'USER_ADMIN_REMOVED' as const,
-    data: matches.object as Validator<unknown, User>
+    data: matches.object as Validator<unknown, UserInterface>
   })
 
   static searchedUser = defineAction({
     type: 'USER_SEARCH_ADMIN' as const,
-    userResult: matches.object as Validator<unknown, Paginated<User>>
+    userResult: matches.object as Validator<unknown, Paginated<UserInterface>>
   })
 
   static setSkipGuests = defineAction({
     type: 'SET_SKIP_GUESTS' as const,
     skipGuests: matches.boolean
-  })
-
-  static setUserRole = defineAction({
-    type: 'SET_USER_ROLE' as const,
-    userRole: matches.string
   })
 
   static resetFilter = defineAction({

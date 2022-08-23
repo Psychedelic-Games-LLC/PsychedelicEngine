@@ -1,6 +1,7 @@
-import _ from 'lodash'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+
+import capitalizeFirstLetter from '@xrengine/common/src/utils/capitalizeFirstLetter'
 
 import Box from '@mui/material/Box'
 import FormControl from '@mui/material/FormControl'
@@ -23,6 +24,8 @@ interface Props {
   endControl?: React.ReactNode
   sx?: SxProps<Theme>
   onChange?: (e: any) => void
+  onPointerEnter?: (e: any) => void
+  onPointerUp?: (e: any) => void
 }
 
 export interface InputMenuItem {
@@ -30,7 +33,20 @@ export interface InputMenuItem {
   label: string
 }
 
-const InputSelect = ({ className, name, label, value, menu, error, disabled, endControl, sx, onChange }: Props) => {
+const InputSelect = ({
+  className,
+  name,
+  label,
+  value,
+  menu,
+  error,
+  disabled,
+  endControl,
+  sx,
+  onChange,
+  onPointerEnter,
+  onPointerUp
+}: Props) => {
   const { t } = useTranslation()
 
   if (!disabled) {
@@ -42,35 +58,43 @@ const InputSelect = ({ className, name, label, value, menu, error, disabled, end
       <Box sx={{ display: 'flex' }}>
         <FormControl
           variant="outlined"
-          className={className ?? styles.selectField}
+          className={className ?? styles.inputField}
           error={error ? true : false}
           disabled={disabled}
           size="small"
           sx={{ flexGrow: 1 }}
         >
-          <InputLabel>{_.upperFirst(label)}</InputLabel>
+          <InputLabel sx={{ zIndex: 999 }}>{capitalizeFirstLetter(label)}</InputLabel>
+
           <Select
             name={name}
             value={value}
-            label={_.upperFirst(label)}
+            label={capitalizeFirstLetter(label)}
             disabled={disabled}
+            size={'small'}
+            sx={{ opacity: disabled ? 0.38 : 1 }}
             fullWidth
             displayEmpty
             MenuProps={{ classes: { paper: styles.selectPaper } }}
-            size={'small'}
             onChange={onChange}
+            onPointerEnter={onPointerEnter}
+            onPointerUp={onPointerUp}
           >
-            <MenuItem
-              value=""
-              disabled
-              classes={{
-                root: styles.menuItem
-              }}
-            >
-              <em>
-                {t('admin:components.common.select')} {label}
-              </em>
-            </MenuItem>
+            {!disabled && (
+              <MenuItem
+                value=""
+                disabled
+                classes={{
+                  root: styles.menuItem
+                }}
+                onPointerEnter={onPointerEnter}
+                onPointerUp={onPointerUp}
+              >
+                <em>
+                  {t('admin:components.common.select')} {label}
+                </em>
+              </MenuItem>
+            )}
             {menu.map((el, index) => (
               <MenuItem
                 value={el.value}
@@ -78,6 +102,8 @@ const InputSelect = ({ className, name, label, value, menu, error, disabled, end
                 classes={{
                   root: styles.menuItem
                 }}
+                onPointerEnter={onPointerEnter}
+                onPointerUp={onPointerUp}
               >
                 {el.label}
               </MenuItem>

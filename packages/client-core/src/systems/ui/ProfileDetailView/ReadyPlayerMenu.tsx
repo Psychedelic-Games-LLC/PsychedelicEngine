@@ -1,19 +1,19 @@
-import { createState } from '@speigg/hookstate'
+import { createState } from '@hookstate/core'
 import React, { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PerspectiveCamera, Scene, WebGLRenderer } from 'three'
 
 import { THUMBNAIL_HEIGHT, THUMBNAIL_WIDTH } from '@xrengine/common/src/constants/AvatarConstants'
+import multiLogger from '@xrengine/common/src/logger'
 import { AssetLoader } from '@xrengine/engine/src/assets/classes/AssetLoader'
 import { loadAvatarForPreview } from '@xrengine/engine/src/avatar/functions/avatarFunctions'
-import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
 import { Entity } from '@xrengine/engine/src/ecs/classes/Entity'
 import { createEntity } from '@xrengine/engine/src/ecs/functions/EntityFunctions'
 import { useWorld } from '@xrengine/engine/src/ecs/functions/SystemHooks'
 import { getOrbitControls } from '@xrengine/engine/src/input/functions/loadOrbitControl'
 import { createXRUI } from '@xrengine/engine/src/xrui/functions/createXRUI'
-import { accessWidgetAppState, WidgetAppActions } from '@xrengine/engine/src/xrui/WidgetAppService'
-import { dispatchAction } from '@xrengine/hyperflux'
+import { WidgetAppService } from '@xrengine/engine/src/xrui/WidgetAppService'
+import { WidgetName } from '@xrengine/engine/src/xrui/Widgets'
 
 import { ArrowBack, Check } from '@mui/icons-material'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -26,6 +26,8 @@ import {
 } from '../../../user/components/UserMenu/menus/helperFunctions'
 import { AuthService } from '../../../user/services/AuthService'
 import styleString from './index.scss'
+
+const logger = multiLogger.child({ component: 'client-core:ReadyPlayerMenu' })
 
 export function createReadyPlayerMenu() {
   return createXRUI(ReadyPlayerMenu, createReadyPlayerMenuState())
@@ -79,8 +81,8 @@ const ReadyPlayerMenu = () => {
 
   const handleMessageEvent = async (event, entity) => {
     const url = event.data
-    setShowLoading(false)
-    if (url != null && url.toString().toLowerCase().startsWith('http')) {
+
+    if (url && url.toString().toLowerCase().startsWith('http')) {
       setShowLoading(true)
       setAvatarUrl(url)
       try {
@@ -93,28 +95,30 @@ const ReadyPlayerMenu = () => {
             setError(error)
             setObj(obj)
           })
-          setShowLoading(false)
-          fetch(avatarUrl)
+          fetch(url)
             .then((res) => res.blob())
             .then((data) => setSelectedFile(data))
             .catch((err) => {
               setError(err.message)
-              console.log(err.message)
+              logger.error(err)
             })
+            .finally(() => setShowLoading(false))
         }
       } catch (error) {
-        console.error(error)
+        logger.error(error)
         setError(t('user:usermenu.avatar.selectValidFile'))
       }
+    } else {
+      setShowLoading(false)
     }
   }
 
   const openProfileMenu = (e) => {
-    setWidgetVisibility('Profile', true)
+    WidgetAppService.setWidgetVisibility(WidgetName.PROFILE, true)
   }
 
   const closeMenu = (e) => {
-    setWidgetVisibility('Profile', false)
+    WidgetAppService.setWidgetVisibility(WidgetName.PROFILE, false)
     uploadAvatar()
   }
 
@@ -127,34 +131,20 @@ const ReadyPlayerMenu = () => {
     ;(canvas.width = THUMBNAIL_WIDTH), (canvas.height = THUMBNAIL_HEIGHT)
 
     const newContext = canvas.getContext('2d')
-    newContext?.drawImage(renderer.domElement, THUMBNAIL_WIDTH / 2 - THUMBNAIL_WIDTH, 0)
+    newContext?.drawImage(renderer.domElement, 0, 0)
 
     var thumbnailName = avatarUrl.substring(0, avatarUrl.lastIndexOf('.')) + '.png'
 
     canvas.toBlob(async (blob) => {
-      await AuthService.uploadAvatarModel(selectedFile, new File([blob!], thumbnailName), avatarName, undefined)
-      setWidgetVisibility('Profile', true)
+      const uploadResponse = await AuthService.uploadAvatarModel(
+        selectedFile,
+        new File([blob!], thumbnailName),
+        avatarName,
+        undefined
+      )
+      await AuthService.createAvatar(uploadResponse[0], uploadResponse[1], avatarName)
+      WidgetAppService.setWidgetVisibility(WidgetName.PROFILE, true)
     })
-  }
-
-  const setWidgetVisibility = (widgetName: string, visibility: boolean) => {
-    const widgetState = accessWidgetAppState()
-    const widgets = Object.entries(widgetState.widgets.value).map(([id, widgetState]) => ({
-      id,
-      ...widgetState,
-      ...Engine.instance.currentWorld.widgets.get(id)!
-    }))
-
-    const currentWidget = widgets.find((w) => w.label === widgetName)
-
-    // close currently open widgets until we support multiple widgets being open at once
-    for (let widget of widgets) {
-      if (currentWidget && widget.id !== currentWidget.id) {
-        dispatchAction(WidgetAppActions.showWidget({ id: widget.id, shown: false }))
-      }
-    }
-
-    currentWidget && dispatchAction(WidgetAppActions.showWidget({ id: currentWidget.id, shown: visibility }))
   }
 
   return (
@@ -163,7 +153,7 @@ const ReadyPlayerMenu = () => {
       <div
         ref={panelRef}
         className="ReadyPlayerPanel"
-        style={{ width: selectedFile ? '400px' : '600px', padding: selectedFile ? '100px 0' : '0' }}
+        style={{ width: selectedFile ? '400px' : '600px', padding: selectedFile ? '15px' : '0' }}
       >
         {selectedFile && (
           <section className="controlContainer">
@@ -198,7 +188,9 @@ const ReadyPlayerMenu = () => {
             width: THUMBNAIL_WIDTH + 'px',
             height: THUMBNAIL_HEIGHT + 'px',
             margin: 'auto',
-            display: !avatarUrl ? 'none' : 'block'
+            display: !avatarUrl ? 'none' : 'block',
+            boxShadow: !avatarUrl || showLoading ? 'none' : '0 0 10px var(--buttonOutlined)',
+            borderRadius: '8px'
           }}
         ></div>
         {selectedFile && (
@@ -209,8 +201,7 @@ const ReadyPlayerMenu = () => {
             className="iconBlock"
             style={{
               color: hover ? '#fff' : '#5f5ff1',
-              position: 'absolute',
-              top: '90%',
+              marginTop: '10px',
               left: '45%',
               border: 'none',
               borderRadius: '50%',

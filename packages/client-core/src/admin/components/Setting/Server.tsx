@@ -21,6 +21,9 @@ const Server = () => {
 
   const [gaTrackingId, setGaTrackingId] = useState(serverSetting?.gaTrackingId)
   const [gitPem, setGitPem] = useState(serverSetting?.gitPem)
+  const [instanceserverUnreachableTimeoutSeconds, setInstanceserverUnreachableTimeoutSeconds] = useState(
+    serverSetting?.instanceserverUnreachableTimeoutSeconds
+  )
   const [dryRun, setDryRun] = useState(true)
   const [local, setLocal] = useState(true)
 
@@ -28,11 +31,19 @@ const Server = () => {
     if (serverSetting) {
       setGaTrackingId(serverSetting?.gaTrackingId)
       setGitPem(serverSetting?.gitPem)
+      setInstanceserverUnreachableTimeoutSeconds(serverSetting?.instanceserverUnreachableTimeoutSeconds)
     }
   }, [serverSettingState?.updateNeeded?.value])
 
   const handleSubmit = (event) => {
-    ServerSettingService.patchServerSetting({ gaTrackingId: gaTrackingId, gitPem: gitPem }, id)
+    ServerSettingService.patchServerSetting(
+      {
+        gaTrackingId: gaTrackingId,
+        gitPem: gitPem,
+        instanceserverUnreachableTimeoutSeconds: instanceserverUnreachableTimeoutSeconds
+      },
+      id
+    )
   }
 
   const handleCancel = () => {
@@ -179,6 +190,13 @@ const Server = () => {
             disabled
           />
 
+          <InputText
+            name="releaseName"
+            label={t('admin:components.setting.instanceserverUnreachableTimeoutSeconds')}
+            value={instanceserverUnreachableTimeoutSeconds}
+            onChange={(e) => setInstanceserverUnreachableTimeoutSeconds(e.target.value)}
+          />
+
           <InputSwitch
             name="local"
             label={t('admin:components.setting.local')}
@@ -188,17 +206,11 @@ const Server = () => {
           />
         </Grid>
       </Grid>
-      <Button sx={{ maxWidth: '100%' }} variant="outlined" className={styles.cancelButton} onClick={handleCancel}>
-        {t('admin:components.setting.cancel')}
+      <Button sx={{ maxWidth: '100%' }} className={styles.outlinedButton} onClick={handleCancel}>
+        {t('admin:components.common.cancel')}
       </Button>
-      <Button
-        sx={{ maxWidth: '100%', ml: 1 }}
-        variant="contained"
-        className={styles.saveBtn}
-        type="submit"
-        onClick={handleSubmit}
-      >
-        {t('admin:components.setting.save')}
+      <Button sx={{ maxWidth: '100%', ml: 1 }} className={styles.gradientButton} onClick={handleSubmit}>
+        {t('admin:components.common.save')}
       </Button>
     </Box>
   )

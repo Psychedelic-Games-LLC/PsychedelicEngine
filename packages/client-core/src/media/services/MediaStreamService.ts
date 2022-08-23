@@ -1,15 +1,17 @@
 import mediasoup from 'mediasoup-client'
 
 import { MediaStreams } from '@xrengine/client-core/src/transports/MediaStreams'
+import { UserId } from '@xrengine/common/src/interfaces/UserId'
 import { matches, Validator } from '@xrengine/engine/src/common/functions/MatchesUtils'
 import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
-import { NearbyUser } from '@xrengine/engine/src/networking/functions/getNearbyUsers'
-import { addActionReceptor, defineAction, defineState, dispatchAction, getState, useState } from '@xrengine/hyperflux'
+import { getNearbyUsers } from '@xrengine/engine/src/networking/functions/getNearbyUsers'
+import { defineAction, defineState, dispatchAction, getState, useState } from '@xrengine/hyperflux'
 
 import { SocketWebRTCClientNetwork } from '../../transports/SocketWebRTCClientNetwork'
+import { accessUserState } from '../../user/services/UserService'
 
 //State
-const MediaState = defineState({
+export const MediaState = defineState({
   name: 'MediaState',
   initial: () => ({
     isCamVideoEnabled: false,
@@ -18,39 +20,35 @@ const MediaState = defineState({
     isScreenAudioEnabled: false,
     isFaceTrackingEnabled: false,
     enableBydefault: true,
-    nearbyLayerUsers: [] as NearbyUser[],
+    nearbyLayerUsers: [] as UserId[],
     consumers: [] as mediasoup.types.Consumer[]
   })
 })
 
 export const MediaServiceReceptor = (action) => {
-  getState(MediaState).batch((s) => {
-    matches(action)
-      .when(MediaStreamAction.setCamVideoStateAction.matches, (action) => {
-        return s.isCamVideoEnabled.set(action.isEnable)
-      })
-      .when(MediaStreamAction.setCamAudioStateAction.matches, (action) => {
-        return s.isCamAudioEnabled.set(action.isEnable)
-      })
-      .when(MediaStreamAction.setScreenVideoStateAction.matches, (action) => {
-        return s.isScreenVideoEnabled.set(action.isEnable)
-      })
-      .when(MediaStreamAction.setScreenAudioStateAction.matches, (action) => {
-        return s.isScreenAudioEnabled.set(action.isEnable)
-      })
-      .when(MediaStreamAction.setFaceTrackingStateAction.matches, (action) => {
-        return s.isFaceTrackingEnabled.set(action.isEnable)
-      })
-      .when(MediaStreamAction.setMediaEnabledByDefaultAction.matches, (action) => {
-        return s.enableBydefault.set(action.isEnable)
-      })
-      .when(MediaStreamAction.setConsumersAction.matches, (action) => {
-        return s.consumers.set(action.consumers)
-      })
-      .when(MediaStreamAction.setNearbyLayerUsersAction.matches, (action) => {
-        return s.nearbyLayerUsers.set(action.users)
-      })
-  })
+  const s = getState(MediaState)
+  matches(action)
+    .when(MediaStreamAction.setCamVideoStateAction.matches, (action) => {
+      return s.isCamVideoEnabled.set(action.isEnable)
+    })
+    .when(MediaStreamAction.setCamAudioStateAction.matches, (action) => {
+      return s.isCamAudioEnabled.set(action.isEnable)
+    })
+    .when(MediaStreamAction.setScreenVideoStateAction.matches, (action) => {
+      return s.isScreenVideoEnabled.set(action.isEnable)
+    })
+    .when(MediaStreamAction.setScreenAudioStateAction.matches, (action) => {
+      return s.isScreenAudioEnabled.set(action.isEnable)
+    })
+    .when(MediaStreamAction.setFaceTrackingStateAction.matches, (action) => {
+      return s.isFaceTrackingEnabled.set(action.isEnable)
+    })
+    .when(MediaStreamAction.setMediaEnabledByDefaultAction.matches, (action) => {
+      return s.enableBydefault.set(action.isEnable)
+    })
+    .when(MediaStreamAction.setConsumersAction.matches, (action) => {
+      return s.consumers.set(action.consumers)
+    })
 }
 
 export const accessMediaStreamState = () => getState(MediaState)
@@ -97,8 +95,16 @@ export const MediaStreamService = {
       }, 1000)
     }
   },
-  triggerUpdateNearbyLayerUsers: () => {
-    dispatchAction(MediaStreamAction.setNearbyLayerUsersAction({ users: MediaStreams.instance.nearbyLayerUsers }))
+  updateNearbyLayerUsers: () => {
+    const mediaState = getState(MediaState)
+    const UserState = accessUserState()
+
+    const nonPartyUserIds = UserState.layerUsers
+      .filter((user) => user.partyId.value == null)
+      .map((user) => user.id.value)
+    const nearbyUsers = getNearbyUsers(Engine.instance.userId, nonPartyUserIds)
+    if (JSON.stringify(mediaState.nearbyLayerUsers.value) !== JSON.stringify(nearbyUsers))
+      mediaState.nearbyLayerUsers.set(nearbyUsers)
   },
   updateFaceTrackingState: () => {
     dispatchAction(MediaStreamAction.setFaceTrackingStateAction({ isEnable: MediaStreams.instance.faceTracking }))
@@ -144,10 +150,5 @@ export class MediaStreamAction {
   static setConsumersAction = defineAction({
     type: 'CONSUMERS_CHANGED' as const,
     consumers: matches.any
-  })
-
-  static setNearbyLayerUsersAction = defineAction({
-    type: 'NEARBY_LAYER_USERS_CHANGED' as const,
-    users: matches.array as Validator<unknown, NearbyUser[]>
   })
 }

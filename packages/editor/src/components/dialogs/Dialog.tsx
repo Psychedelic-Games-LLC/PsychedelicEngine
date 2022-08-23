@@ -6,7 +6,6 @@ import { Button, SecondaryButton } from '../inputs/Button'
 /**
  * DialogContainer used as container element for DialogHeader, DialogContent and DialogBottomNav.
  *
- * @author Robert Long
  * @type {Styled component}
  */
 const DialogContainer = (styled as any).form`
@@ -15,7 +14,7 @@ const DialogContainer = (styled as any).form`
   border-radius: 4px;
   background-color: #282c31;
   max-width: 800px;
-  min-width: 400px;
+  min-width: 250px;
   min-height: 150px;
   max-height: 80vh;
 `
@@ -23,7 +22,6 @@ const DialogContainer = (styled as any).form`
 /**
  * DialogHeader used for providing styles to header text.
  *
- * @author Robert Long
  * @type {Styled component}
  */
 const DialogHeader = (styled as any).div`
@@ -48,7 +46,6 @@ const DialogHeader = (styled as any).div`
 /**
  * DialogContent used to provide styles for dialog body content.
  *
- * @author Robert Long
  * @type {Styled component}
  */
 export const DialogContent = (styled as any).div`
@@ -76,19 +73,11 @@ export const DialogContent = (styled as any).div`
 /**
  * DialogBottomNav used to provide styles for bottom nav of Dialog component.
  *
- * @author Robert Long
  * @type {Styled component}
  */
 const DialogBottomNav = (styled as any).div`
-  display: flex;
-  height: 64px;
-  flex-direction: row;
-  justify-content: flex-end;
-  align-items: center;
-  background-color: black;
-  border-bottom-left-radius: inherit;
-  border-bottom-right-radius: inherit;
   padding: 8px;
+  margin: auto;
 
   a {
     color: var(--textColor);
@@ -106,7 +95,6 @@ const DialogBottomNav = (styled as any).div`
 /**
  * declaring props for Dialog component.
  *
- * @author Robert Long
  * @type {Props}
  */
 interface Props {
@@ -123,11 +111,10 @@ interface Props {
 /**
  * Dialog used to render view for Dialog which contains form.
  *
- * @author Robert Long
  * @param  {Props}
  * @constructor
  */
-const Dialog = ({ tag, title, bottomNav, children, cancelLabel, confirmLabel, onCancel, onConfirm }: Props) => {
+const Dialog = ({ tag, bottomNav, children, cancelLabel, confirmLabel, onCancel, onConfirm }: Props) => {
   // callback function used to handle form submit
   const onSubmitForm = useCallback(
     (e) => {
@@ -148,9 +135,6 @@ const Dialog = ({ tag, title, bottomNav, children, cancelLabel, confirmLabel, on
   // returning view for Dialog component
   return (
     <DialogContainer as={tag} onSubmit={onSubmitForm}>
-      <DialogHeader>
-        <span>{title}</span>
-      </DialogHeader>
       <DialogContent>{children}</DialogContent>
       {(onConfirm || onCancel || bottomNav) && (
         <DialogBottomNav>

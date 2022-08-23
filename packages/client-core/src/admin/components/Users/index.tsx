@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import FilterListIcon from '@mui/icons-material/FilterList'
@@ -10,10 +10,7 @@ import Grid from '@mui/material/Grid'
 import IconButton from '@mui/material/IconButton'
 import Popover from '@mui/material/Popover'
 
-import { useAuthState } from '../../../user/services/AuthService'
-import InputSelect, { InputMenuItem } from '../../common/InputSelect'
 import Search from '../../common/Search'
-import { AdminUserRoleService, useAdminUserRoleState } from '../../services/UserRoleService'
 import { AdminUserService } from '../../services/UserService'
 import styles from '../../styles/admin.module.scss'
 import UserDrawer, { UserDrawerMode } from './UserDrawer'
@@ -22,21 +19,10 @@ import UserTable from './UserTable'
 const Users = () => {
   const [search, setSearch] = useState('')
   const [openUserDrawer, setOpenUserDrawer] = useState(false)
-  const [role, setRole] = useState('')
   const { t } = useTranslation()
   const [checked, setChecked] = useState(false)
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
   const openMenu = Boolean(anchorEl)
-  const user = useAuthState().user
-  const userRole = useAdminUserRoleState()
-
-  useEffect(() => {
-    const fetchData = async () => {
-      AdminUserRoleService.fetchUserRole()
-    }
-    const role = userRole ? userRole.updateNeeded.value : false
-    if (role && user.id.value) fetchData()
-  }, [userRole.updateNeeded.value, user.value])
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget)
@@ -53,23 +39,10 @@ const Users = () => {
     setSearch(e.target.value)
   }
 
-  const handleChangeRole = (e) => {
-    AdminUserService.setUserRole(e.target.value)
-    setRole(e.target.value)
-  }
-
   const resetFilter = () => {
     setChecked(false)
-    setRole('')
     AdminUserService.resetFilter()
   }
-
-  const userRoleData: InputMenuItem[] = userRole.userRole.value.map((el) => {
-    return {
-      value: el.role,
-      label: el.role
-    }
-  })
 
   return (
     <div>
@@ -102,7 +75,7 @@ const Users = () => {
           </Box>
         </Grid>
       </Grid>
-      <UserTable className={styles.rootTable} search={search} />
+      <UserTable className={styles.rootTableWithSearch} search={search} />
       <UserDrawer open={openUserDrawer} mode={UserDrawerMode.Create} onClose={() => setOpenUserDrawer(false)} />
       <Popover
         classes={{ paper: styles.popover }}
@@ -115,14 +88,6 @@ const Users = () => {
         }}
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
       >
-        <InputSelect
-          name="userRole"
-          sx={{ mb: 1 }}
-          label={t('admin:components.user.userRole')}
-          value={role}
-          menu={userRoleData}
-          onChange={handleChangeRole}
-        />
         <FormControlLabel
           className={styles.checkbox}
           sx={{ mb: 1 }}
@@ -136,9 +101,9 @@ const Users = () => {
               checked={checked}
             />
           }
-          label={t('admin:components.user.hideGuests') as string}
+          label={t('admin:components.user.hideGuests')}
         />
-        <Button className={styles.gradientButton} onClick={() => resetFilter()}>
+        <Button className={styles.gradientButton} sx={{ width: '100%' }} onClick={resetFilter}>
           Reset
         </Button>
       </Popover>

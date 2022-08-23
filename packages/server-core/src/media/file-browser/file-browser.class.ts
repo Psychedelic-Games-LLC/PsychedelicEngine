@@ -1,10 +1,12 @@
 import { Forbidden } from '@feathersjs/errors'
-import { NullableId, Params, ServiceMethods } from '@feathersjs/feathers/lib/declarations'
+import { NullableId, Paginated, Params, ServiceMethods } from '@feathersjs/feathers/lib/declarations'
 import appRootPath from 'app-root-path'
 import fs from 'fs'
 import path from 'path/posix'
 
 import { FileContentType } from '@xrengine/common/src/interfaces/FileContentType'
+import { StaticResourceInterface } from '@xrengine/common/src/interfaces/StaticResourceInterface'
+import { processFileName } from '@xrengine/common/src/utils/processFileName'
 
 import { Application } from '../../../declarations'
 import { copyRecursiveSync, getIncrementalName } from '../FileUtil'
@@ -32,8 +34,6 @@ interface PatchParams {
 
 /**
  * A class for Managing files in FileBrowser
- *
- * @author Abhishek Pathak
  */
 
 export class FileBrowserService implements ServiceMethods<any> {
@@ -52,19 +52,30 @@ export class FileBrowserService implements ServiceMethods<any> {
    * @param params
    * @returns
    */
-  async get(directory: string, params?: Params): Promise<FileContentType[]> {
+  async get(directory: string, params?: Params): Promise<Paginated<FileContentType>> {
+    if (!params) params = {}
+    if (!params.query) params.query = {}
+    const { $skip, $limit } = params.query
+
+    const skip = $skip ? $skip : 0
+    const limit = $limit ? $limit : 100
+
     const storageProvider = getStorageProvider()
-    const isAdmin = params?.user && params.user.userRole === 'admin'
+    const isAdmin = params.user && params.user?.scopes?.find((scope) => scope.type === 'admin:admin')
     if (directory[0] === '/') directory = directory.slice(1) // remove leading slash
-    if (params?.provider && !isAdmin && directory !== '' && !/^projects/.test(directory))
+    if (params.provider && !isAdmin && directory !== '' && !/^projects/.test(directory))
       throw new Forbidden('Not allowed to access that directory')
     let result = await storageProvider.listFolderContent(directory)
 
-    if (params?.provider && !isAdmin) {
+    const total = result.length
+
+    result = result.slice(skip, skip + limit)
+
+    if (params.provider && !isAdmin) {
       const projectPermissions = await this.app.service('project-permission').Model.findAll({
         include: ['project'],
         where: {
-          userId: params?.user.id
+          userId: params.user.id
         }
       })
       const allowedProjectNames = projectPermissions.map((permission) => permission.project.name)
@@ -78,7 +89,12 @@ export class FileBrowserService implements ServiceMethods<any> {
         )
       })
     }
-    return result
+    return {
+      total,
+      limit,
+      skip,
+      data: result
+    }
   }
 
   /**
@@ -138,7 +154,9 @@ export class FileBrowserService implements ServiceMethods<any> {
    */
   async patch(id: NullableId, data: PatchParams, params?: Params) {
     const storageProvider = getStorageProvider()
-    const key = path.join(data.path[0] === '/' ? data.path.substring(1) : data.path, data.fileName)
+    const name = processFileName(data.fileName)
+
+    const key = path.join(data.path[0] === '/' ? data.path.substring(1) : data.path, name)
 
     await storageProvider.putObject(
       {
@@ -179,12 +197,12 @@ export class FileBrowserService implements ServiceMethods<any> {
       fs.unlinkSync(filePath)
     }
 
-    const staticResource = await this.app.service('static-resource').find({
+    const staticResource = (await this.app.service('static-resource').find({
       where: {
         key: key,
         $limit: 1
       }
-    })
+    })) as Paginated<StaticResourceInterface>
     staticResource?.data?.length > 0 && (await this.app.service('static-resource').remove(staticResource?.data[0]?.id))
 
     return result

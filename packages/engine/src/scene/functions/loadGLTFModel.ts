@@ -1,29 +1,26 @@
-import { AnimationMixer, BufferGeometry, Mesh, Object3D, Quaternion, Vector3 } from 'three'
+import { AnimationMixer, BufferGeometry, Mesh, Object3D } from 'three'
 import { NavMesh, Polygon } from 'yuka'
-
-import { dispatchAction } from '@xrengine/hyperflux'
 
 import { AnimationComponent } from '../../avatar/components/AnimationComponent'
 import { parseGeometry } from '../../common/functions/parseGeometry'
-import { createQuaternionProxy, createVector3Proxy } from '../../common/proxies/three'
 import { DebugNavMeshComponent } from '../../debug/DebugNavMeshComponent'
 import { Engine } from '../../ecs/classes/Engine'
-import { EngineActions, getEngineState } from '../../ecs/classes/EngineState'
 import { Entity } from '../../ecs/classes/Entity'
 import { addComponent, ComponentMap, getComponent, removeComponent } from '../../ecs/functions/ComponentFunctions'
 import { createEntity } from '../../ecs/functions/EntityFunctions'
+import { addEntityNodeInTree, createEntityNode } from '../../ecs/functions/EntityTreeFunctions'
 import { NavMeshComponent } from '../../navigation/component/NavMeshComponent'
-import { matchActionOnce } from '../../networking/functions/matchActionOnce'
-import { WorldNetworkAction } from '../../networking/functions/WorldNetworkAction'
 import { applyTransformToMeshWorld } from '../../physics/functions/parseModelColliders'
-import { TransformChildComponent } from '../../transform/components/TransformChildComponent'
-import { TransformComponent } from '../../transform/components/TransformComponent'
-import { ModelComponent, ModelComponentType } from '../components/ModelComponent'
+import { setComputedTransformComponent } from '../../transform/components/ComputedTransformComponent'
+import { setLocalTransformComponent } from '../../transform/components/LocalTransformComponent'
+import { setTransformComponent, TransformComponent } from '../../transform/components/TransformComponent'
+import { EntityNodeComponent } from '../components/EntityNodeComponent'
+import { ModelComponent } from '../components/ModelComponent'
 import { NameComponent } from '../components/NameComponent'
 import { Object3DComponent } from '../components/Object3DComponent'
 import { ObjectLayers } from '../constants/ObjectLayers'
 import { loadComponent } from '../functions/SceneLoading'
-import { VIDEO_MESH_NAME } from './loaders/VideoFunctions'
+import { applyTransformPositionOffset, applyTransformRotationOffset } from './loaders/TransformFunctions'
 import { setObjectLayers } from './setObjectLayers'
 
 export const createObjectEntityFromGLTF = (entity: Entity, obj3d: Object3D): void => {
@@ -34,12 +31,15 @@ export const createObjectEntityFromGLTF = (entity: Entity, obj3d: Object3D): voi
   for (const [key, value] of data) {
     const parts = key.split('.')
     if (parts.length > 1) {
-      // TODO: deprecate xrengine
-      if (parts[0] === 'realitypack' || parts[0] === 'xrengine') {
+      if (parts[0] === 'xrengine') {
         const componentExists = ComponentMap.has(parts[1])
         const _toLoad = componentExists ? components : prefabs
         if (typeof _toLoad[parts[1]] === 'undefined') {
-          _toLoad[parts[1]] = {}
+          _toLoad[parts[1]] = {
+            [parts[2]]: value,
+            ...obj3d.userData
+          }
+          obj3d.userData[parts[2]] = value
         }
         if (parts.length > 2) {
           _toLoad[parts[1]][parts[2]] = value
@@ -71,7 +71,7 @@ export const parseObjectComponentsFromGLTF = (entity: Entity, object3d?: Object3
   const meshesToProcess: Mesh[] = []
 
   obj3d.traverse((mesh: Mesh) => {
-    if ('xrengine.entity' in mesh.userData || 'realitypack.entity' in mesh.userData) {
+    if ('xrengine.entity' in mesh.userData) {
       meshesToProcess.push(mesh)
     }
   })
@@ -83,38 +83,33 @@ export const parseObjectComponentsFromGLTF = (entity: Entity, object3d?: Object3
 
   for (const mesh of meshesToProcess) {
     const e = createEntity()
+
+    const node = createEntityNode(e, mesh.uuid)
+    addEntityNodeInTree(node, Engine.instance.currentWorld.entityTree.entityNodeMap.get(entity))
+
     addComponent(e, NameComponent, {
-      name: mesh.userData['xrengine.entity'] ?? mesh.userData['realitypack.entity'] ?? mesh.uuid
+      name: mesh.userData['xrengine.entity'] ?? mesh.uuid
     })
 
     delete mesh.userData['xrengine.entity']
-    delete mesh.userData['realitypack.entity']
     delete mesh.userData.name
 
-    const localPosition = new Vector3().copy(mesh.position)
-    const localRotation = new Quaternion().copy(mesh.quaternion)
+    addComponent(e, EntityNodeComponent, { components: [] })
+
+    if (Engine.instance.isEditor)
+      // store local transform in local transform component
+      setLocalTransformComponent(e, mesh.position, mesh.quaternion, mesh.scale)
 
     // apply root mesh's world transform to this mesh locally
     applyTransformToMeshWorld(entity, mesh)
 
-    const position = createVector3Proxy(TransformComponent.position, e)
-    const rotation = createQuaternionProxy(TransformComponent.rotation, e)
-    const scale = createVector3Proxy(TransformComponent.scale, e)
-    const transform = addComponent(e, TransformComponent, { position, rotation, scale })
+    const transform = setTransformComponent(e)
     mesh.getWorldPosition(transform.position)
     mesh.getWorldQuaternion(transform.rotation)
     mesh.getWorldScale(transform.scale)
 
     mesh.removeFromParent()
     addComponent(e, Object3DComponent, { value: mesh })
-
-    // to ensure colliders and other entities from gltf metadata move with models in the editor, we need to add a child transform component
-    if (Engine.instance.isEditor)
-      addComponent(e, TransformChildComponent, {
-        parent: entity,
-        offsetPosition: localPosition,
-        offsetQuaternion: localRotation
-      })
 
     createObjectEntityFromGLTF(e, mesh)
   }
@@ -152,35 +147,10 @@ export const loadNavmesh = (entity: Entity, object3d?: Object3D): void => {
   }
 }
 
-export const overrideTexture = (entity: Entity, object3d?: Object3D, world = Engine.instance.currentWorld): void => {
-  const state = getEngineState()
+export const parseGLTFModel = (entity: Entity) => {
+  const props = getComponent(entity, ModelComponent)
+  const obj3d = getComponent(entity, Object3DComponent).value
 
-  if (state.sceneLoaded.value) {
-    const modelComponent = getComponent(entity, ModelComponent)
-    const node = world.entityTree.uuidNodeMap.get(modelComponent.textureOverride)
-
-    if (node) {
-      const obj3d = object3d ?? getComponent(entity, Object3DComponent).value
-      const textureObj3d = getComponent(node.entity, Object3DComponent).value
-
-      textureObj3d.traverse((mesh: Mesh) => {
-        if (mesh.name === VIDEO_MESH_NAME) {
-          obj3d.traverse((obj: Mesh) => {
-            if (obj.material) obj.material = mesh.material
-          })
-        }
-      })
-    }
-
-    return
-  } else {
-    matchActionOnce(EngineActions.sceneLoaded.matches, () => {
-      overrideTexture(entity, object3d, world)
-    })
-  }
-}
-
-export const parseGLTFModel = (entity: Entity, props: ModelComponentType, obj3d: Object3D) => {
   // always parse components first
   parseObjectComponentsFromGLTF(entity, obj3d)
 
@@ -204,23 +174,16 @@ export const parseGLTFModel = (entity: Entity, props: ModelComponentType, obj3d:
 
   const world = Engine.instance.currentWorld
 
-  if (props.textureOverride) {
-    // TODO: we should push this to ECS, something like a SceneObjectLoadComponent,
-    // or add engine events for specific objects being added to the scene,
-    // the scene load event + delay 1 second delay works for now.
-    overrideTexture(entity, obj3d, world)
-  }
-
-  if (!Engine.instance.isEditor && world.worldNetwork?.isHosting && props.isDynamicObject) {
+  if (!Engine.instance.isEditor && world.worldNetwork?.isHosting /**&& props.isDynamicObject*/) {
     const node = world.entityTree.entityNodeMap.get(entity)
     if (node) {
-      dispatchAction(
-        WorldNetworkAction.spawnObject({
-          prefab: '',
-          parameters: { sceneEntityId: node.uuid }
-        }),
-        Engine.instance.currentWorld.worldNetwork.hostId
-      )
+      // dispatchAction(
+      //   WorldNetworkAction.spawnObject({
+      //     prefab: 'scene_object',
+      //     parameters: { sceneEntityId: node.uuid }
+      //   }),
+      //   Engine.instance.currentWorld.worldNetwork.hostId
+      // )
     }
   }
 

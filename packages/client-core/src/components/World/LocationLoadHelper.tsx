@@ -1,9 +1,5 @@
 import { useHistory } from 'react-router-dom'
-import matches from 'ts-matches'
 
-import { AppAction, GeneralStateList } from '@xrengine/client-core/src/common/services/AppService'
-import { accessProjectState } from '@xrengine/client-core/src/common/services/ProjectService'
-import { MediaStreamService } from '@xrengine/client-core/src/media/services/MediaStreamService'
 import { LocationService } from '@xrengine/client-core/src/social/services/LocationService'
 import { getPortalDetails } from '@xrengine/client-core/src/world/functions/getPortalDetails'
 import { SceneData } from '@xrengine/common/src/interfaces/SceneInterface'
@@ -18,9 +14,11 @@ import { loadSceneFromJSON } from '@xrengine/engine/src/scene/functions/SceneLoa
 import { loadEngineInjection } from '@xrengine/projects/loadEngineInjection'
 import { getSystemsFromSceneData } from '@xrengine/projects/loadSystemInjection'
 
+import { API } from '../../API'
+
 const logger = multiLogger.child({ component: 'client-core:world' })
 
-export const retrieveLocationByName = (locationName: string) => {
+export const retrieveLocationByName = (locationName: string, userId: string) => {
   if (locationName === globalThis.process.env['VITE_LOBBY_LOCATION_NAME']) {
     const history = useHistory()
     LocationService.getLobby()
@@ -29,18 +27,18 @@ export const retrieveLocationByName = (locationName: string) => {
       })
       .catch((err) => logger.error(err, 'getLobby'))
   } else {
-    LocationService.getLocationByName(locationName)
+    LocationService.getLocationByName(locationName, userId)
   }
 }
 
 export const initClient = async () => {
-  const projects = accessProjectState().projects.value.map((project) => project.name)
   const world = Engine.instance.currentWorld
+  const projects = API.instance.client.service('projects').find()
 
   await initializeCoreSystems()
   await initializeRealtimeSystems()
   await initializeSceneSystems()
-  await loadEngineInjection(world, projects)
+  await loadEngineInjection(world, await projects)
 }
 
 export const loadScene = async (sceneData: SceneData) => {

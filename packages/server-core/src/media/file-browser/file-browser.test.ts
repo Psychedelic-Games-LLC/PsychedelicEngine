@@ -1,6 +1,9 @@
+import { Paginated } from '@feathersjs/feathers'
 import assert from 'assert'
 import fs from 'fs'
 import path from 'path/posix'
+
+import { StaticResourceInterface } from '@xrengine/common/src/interfaces/StaticResourceInterface'
 
 import { Application } from '../../../declarations'
 import { createFeathersExpressApp } from '../../createApp'
@@ -54,11 +57,11 @@ describe('file browser service', () => {
     fileNames.forEach((n) => fs.writeFileSync(path.join(dirStoragePath, n), 'Hello world'))
 
     let result = await app.service('file-browser').get(path.join(TEST_PROJECT, dirName))
-    result.forEach((r, i) => assert(r && r.key === path.join(TEST_PROJECT, dirName, fileNames[i])))
+    result.data.forEach((r, i) => assert(r && r.key === path.join(TEST_PROJECT, dirName, fileNames[i])))
 
     // If name starts with '/'
     result = await app.service('file-browser').get('/' + path.join(TEST_PROJECT, dirName))
-    result.forEach((r, i) => assert(r && r.key === path.join(TEST_PROJECT, dirName, fileNames[i])))
+    result.data.forEach((r, i) => assert(r && r.key === path.join(TEST_PROJECT, dirName, fileNames[i])))
 
     fs.rmSync(dirStoragePath, { force: true, recursive: true })
   })
@@ -317,16 +320,16 @@ describe('file browser service', () => {
 
       result.forEach((r) => assert(r === true))
 
-      const staticResource = await app.service('static-resource').find({
+      const staticResource = (await app.service('static-resource').find({
         where: {
           key: filePath,
           $limit: 1
         }
-      })
+      })) as Paginated<StaticResourceInterface>
 
       assert(!fs.existsSync(filePath))
       assert(!fs.existsSync(fileStoragePath))
-      assert.notEqual(staticResource.length, 1)
+      assert.notEqual(staticResource.total, 1)
     })
 
     it('removes dir recursively', async () => {

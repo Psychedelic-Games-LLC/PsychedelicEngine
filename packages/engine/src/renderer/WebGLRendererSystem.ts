@@ -22,7 +22,7 @@ import {
 } from 'three'
 
 import { isDev } from '@xrengine/common/src/utils/isDev'
-import { addActionReceptor, dispatchAction } from '@xrengine/hyperflux'
+import { createActionQueue, dispatchAction } from '@xrengine/hyperflux'
 
 import { CSM } from '../assets/csm/CSM'
 import { ExponentialMovingAverage } from '../common/classes/ExponentialAverageCurve'
@@ -136,6 +136,7 @@ export class EngineRenderer {
     }
 
     this.canvas = canvas
+    canvas.focus()
 
     canvas.ondragstart = (e) => {
       e.preventDefault()
@@ -148,7 +149,7 @@ export class EngineRenderer {
     this.renderer.outputEncoding = sRGBEncoding
 
     // DISABLE THIS IF YOU ARE SEEING SHADER MISBEHAVING - UNCHECK THIS WHEN TESTING UPDATING THREEJS
-    this.renderer.debug.checkShaderErrors = isDev
+    this.renderer.debug.checkShaderErrors = false //isDev
 
     this.xrManager = renderer.xr
     //@ts-ignore
@@ -242,7 +243,12 @@ export class EngineRenderer {
         }
 
         state.qualityLevel.value > 0 && this.csm?.update()
-        if (state.usePostProcessing.value) {
+
+        /**
+         * Editor should always use post processing, even if no postprocessing schema is in the scene,
+         *   it still uses post processing for effects such as outline.
+         */
+        if (state.usePostProcessing.value || Engine.instance.isEditor) {
           this.effectComposer.render(delta)
         } else {
           this.renderer.autoClear = true
@@ -279,13 +285,33 @@ export class EngineRenderer {
 }
 
 export default async function WebGLRendererSystem(world: World) {
-  matchActionOnce(EngineActions.joinedWorld.matches, () => {
-    restoreEngineRendererData()
-  })
+  restoreEngineRendererData()
 
-  addActionReceptor(EngineRendererReceptor)
+  const setQualityLevelActions = createActionQueue(EngineRendererAction.setQualityLevel.matches)
+  const setAutomaticActions = createActionQueue(EngineRendererAction.setAutomatic.matches)
+  const setPostProcessingActions = createActionQueue(EngineRendererAction.setPostProcessing.matches)
+  const setShadowsActions = createActionQueue(EngineRendererAction.setShadows.matches)
+  const setPhysicsDebugActions = createActionQueue(EngineRendererAction.setPhysicsDebug.matches)
+  const setAvatarDebugActions = createActionQueue(EngineRendererAction.setAvatarDebug.matches)
+  const changedRenderModeActions = createActionQueue(EngineRendererAction.changedRenderMode.matches)
+  const changeNodeHelperVisibilityActions = createActionQueue(EngineRendererAction.changeNodeHelperVisibility.matches)
+  const changeGridToolHeightActions = createActionQueue(EngineRendererAction.changeGridToolHeight.matches)
+  const changeGridToolVisibilityActions = createActionQueue(EngineRendererAction.changeGridToolVisibility.matches)
+  const restoreStorageDataActions = createActionQueue(EngineRendererAction.restoreStorageData.matches)
 
   return () => {
+    for (const action of setQualityLevelActions()) EngineRendererReceptor.setQualityLevel(action)
+    for (const action of setAutomaticActions()) EngineRendererReceptor.setAutomatic(action)
+    for (const action of setPostProcessingActions()) EngineRendererReceptor.setPostProcessing(action)
+    for (const action of setShadowsActions()) EngineRendererReceptor.setShadows(action)
+    for (const action of setPhysicsDebugActions()) EngineRendererReceptor.setPhysicsDebug(action)
+    for (const action of setAvatarDebugActions()) EngineRendererReceptor.setAvatarDebug(action)
+    for (const action of changedRenderModeActions()) EngineRendererReceptor.changedRenderMode(action)
+    for (const action of changeNodeHelperVisibilityActions()) EngineRendererReceptor.changeNodeHelperVisibility(action)
+    for (const action of changeGridToolHeightActions()) EngineRendererReceptor.changeGridToolHeight(action)
+    for (const action of changeGridToolVisibilityActions()) EngineRendererReceptor.changeGridToolVisibility(action)
+    for (const action of restoreStorageDataActions()) EngineRendererReceptor.restoreStorageData(action)
+
     EngineRenderer.instance.execute(world.deltaSeconds)
   }
 }

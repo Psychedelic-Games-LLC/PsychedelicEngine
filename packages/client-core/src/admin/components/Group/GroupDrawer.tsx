@@ -1,4 +1,3 @@
-import _ from 'lodash'
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -115,6 +114,15 @@ const GroupDrawer = ({ open, mode, selectedGroup, onClose }: Props) => {
     setState({ ...state, scopeTypes: scope, formErrors: tempErrors })
   }
 
+  const handleSelectAllScopes = () =>
+    handleChangeScopeType(
+      scopeTypes.map((el) => {
+        return { type: el.type }
+      })
+    )
+
+  const handleClearAllScopes = () => handleChangeScopeType([])
+
   const handleChange = (e) => {
     const { name, value } = e.target
 
@@ -138,7 +146,7 @@ const GroupDrawer = ({ open, mode, selectedGroup, onClose }: Props) => {
     const data: CreateGroup = {
       name: state.name,
       description: state.description,
-      scopeTypes: state.scopeTypes
+      scopes: state.scopeTypes
     }
 
     let tempErrors = {
@@ -197,18 +205,28 @@ const GroupDrawer = ({ open, mode, selectedGroup, onClose }: Props) => {
           <AutoComplete
             data={scopeMenu}
             label={t('admin:components.group.grantScope')}
-            defaultValue={state.scopeTypes}
+            value={state.scopeTypes}
             disabled
           />
         )}
 
-        {viewMode === false && (
-          <AutoComplete
-            data={scopeMenu}
-            label={t('admin:components.group.grantScope')}
-            defaultValue={state.scopeTypes}
-            onChange={handleChangeScopeType}
-          />
+        {!viewMode && (
+          <div>
+            <AutoComplete
+              data={scopeMenu}
+              label={t('admin:components.group.grantScope')}
+              value={state.scopeTypes}
+              onChange={handleChangeScopeType}
+            />
+            <div className={styles.scopeButtons}>
+              <Button className={styles.outlinedButton} onClick={handleSelectAllScopes}>
+                {t('admin:components.user.selectAllScopes')}
+              </Button>
+              <Button className={styles.outlinedButton} onClick={handleClearAllScopes}>
+                {t('admin:components.user.clearAllScopes')}
+              </Button>
+            </div>
+          </div>
         )}
 
         {viewMode && (
@@ -219,7 +237,7 @@ const GroupDrawer = ({ open, mode, selectedGroup, onClose }: Props) => {
 
         {viewMode && (!selectedGroup || !selectedGroup.scopes) && (
           <DialogContentText className={`${styles.dialogContentText} ${styles.textAlign}`}>
-            {t('admin:components.index.none')}
+            {t('admin:components.common.none')}
           </DialogContentText>
         )}
 
@@ -244,23 +262,19 @@ const GroupDrawer = ({ open, mode, selectedGroup, onClose }: Props) => {
         </Grid>
 
         <DialogActions>
+          <Button className={styles.outlinedButton} onClick={handleCancel}>
+            {t('admin:components.common.cancel')}
+          </Button>
           {(mode === GroupDrawerMode.Create || editMode) && (
-            <Button className={styles.submitButton} onClick={handleSubmit}>
+            <Button className={styles.gradientButton} onClick={handleSubmit}>
               {t('admin:components.common.submit')}
             </Button>
           )}
-          {mode === GroupDrawerMode.ViewEdit && editMode === false && (
-            <Button
-              className={styles.submitButton}
-              disabled={hasWriteAccess ? false : true}
-              onClick={() => setEditMode(true)}
-            >
+          {mode === GroupDrawerMode.ViewEdit && !editMode && (
+            <Button className={styles.gradientButton} disabled={!hasWriteAccess} onClick={() => setEditMode(true)}>
               {t('admin:components.common.edit')}
             </Button>
           )}
-          <Button className={styles.cancelButton} onClick={handleCancel}>
-            {t('admin:components.common.cancel')}
-          </Button>
         </DialogActions>
       </Container>
     </DrawerView>

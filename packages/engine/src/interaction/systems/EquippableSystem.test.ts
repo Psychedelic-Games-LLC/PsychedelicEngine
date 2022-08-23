@@ -10,8 +10,9 @@ import { createEntity } from '../../ecs/functions/EntityFunctions'
 import { createEngine } from '../../initializeEngine'
 import { NetworkObjectComponent } from '../../networking/components/NetworkObjectComponent'
 import { WorldNetworkAction } from '../../networking/functions/WorldNetworkAction'
+import { Physics } from '../../physics/classes/Physics'
 import { TransformComponent } from '../../transform/components/TransformComponent'
-import { getHandTransform } from '../../xr/functions/WebXRFunctions'
+import { getHandTransform } from '../../xr/XRFunctions'
 import { EquippedComponent } from '../components/EquippedComponent'
 import { EquipperComponent } from '../components/EquipperComponent'
 import { EquippableAttachmentPoint } from '../enums/EquippedEnums'
@@ -22,16 +23,10 @@ import EquippableSystem from './EquippableSystem'
 
 describe.skip('EquippableSystem Integration Tests', () => {
   let equippableSystem
-
-  before(async () => {
+  beforeEach(async () => {
     createEngine()
-    const world = Engine.instance.currentWorld
-    await Engine.instance.currentWorld.physics.createScene({ verbose: true })
-    equippableSystem = await EquippableSystem(world)
-  })
-
-  after(() => {
-    delete (globalThis as any).PhysX
+    await Physics.load()
+    Engine.instance.currentWorld.physicsWorld = Physics.createWorld()
   })
 
   it('system test', async () => {
@@ -41,16 +36,16 @@ describe.skip('EquippableSystem Integration Tests', () => {
 
     const networkObject = addComponent(player, NetworkObjectComponent, {
       ownerId: Engine.instance.userId,
-      networkId: 0 as NetworkId,
-      prefab: '',
-      parameters: {}
+      authorityUserId: Engine.instance.userId,
+      networkId: 0 as NetworkId
     })
 
     createAvatar(
       WorldNetworkAction.spawnAvatar({
         $from: Engine.instance.userId,
         networkId: networkObject.networkId,
-        parameters: { position: new Vector3(-0.48624888685311896, 0, -0.12087574159728942), rotation: new Quaternion() }
+        position: new Vector3(-0.48624888685311896, 0, -0.12087574159728942),
+        rotation: new Quaternion()
       })
     )
 
@@ -58,7 +53,7 @@ describe.skip('EquippableSystem Integration Tests', () => {
       equipperEntity: player,
       attachmentPoint: EquippableAttachmentPoint.HEAD
     })
-    addComponent(player, EquipperComponent, { equippedEntity: item, data: {} as any })
+    addComponent(player, EquipperComponent, { equippedEntity: item })
 
     const equippableTransform = addComponent(item, TransformComponent, {
       position: new Vector3(0, 0, 0),

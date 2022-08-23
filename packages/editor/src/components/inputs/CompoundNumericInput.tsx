@@ -7,7 +7,6 @@ import Slider from './Slider'
 /**
  * StyledCompoundNumericInput used to provide styles for CompoundNumericInput.
  *
- * @author Robert Long
  * @type {Styled component}
  */
 const StyledCompoundNumericInput = (styled as any).div`
@@ -21,16 +20,15 @@ const StyledCompoundNumericInput = (styled as any).div`
 /**
  * CompoundNumericInput used to render the view of component.
  *
- * @author Robert Long
  * @param       {number} value
  * @param       {function} onChange
  * @param       {any} extras
  * @constructor
  */
 export function CompoundNumericInput({ value, onChange, ...extras }) {
-  const { min, max, step } = extras
+  const { min, max, step, style } = extras
   return (
-    <StyledCompoundNumericInput>
+    <StyledCompoundNumericInput style={style}>
       <Slider min={min} max={max} value={value} step={step} onChange={onChange} />
       <NumericInput {...extras} mediumStep={step} value={value} onChange={onChange} />
     </StyledCompoundNumericInput>
