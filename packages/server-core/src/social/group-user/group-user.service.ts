@@ -20,8 +20,6 @@ export default (app: Application) => {
 
   /**
    * Initialize our service with any options it requires and docs
-   *
-   * @author Vyacheslav Solovjov
    */
   const event = new GroupUser(options, app)
   event.docs = groupUserDocs
@@ -36,7 +34,6 @@ export default (app: Application) => {
    *
    * @param data which is parsed to create group user
    * @returns created group user
-   * @author Vyacheslav Solovjov
    */
   service.publish('created', async (data): Promise<any> => {
     try {
@@ -64,16 +61,6 @@ export default (app: Application) => {
         }
       })
       data.user = await app.service('user').get(data.userId)
-      // const avatarResult = await app.service('static-resource').find({
-      //   query: {
-      //     staticResourceType: 'user-thumbnail',
-      //     userId: data.userId
-      //   }
-      // }) as any;
-      //
-      // if (avatarResult.total > 0) {
-      //   data.user.dataValues.avatarUrl = avatarResult.data[0].url;
-      // }
       const targetIds = (groupUsers as any).data.map((groupUser) => {
         return groupUser.userId
       })
@@ -95,7 +82,6 @@ export default (app: Application) => {
    *
    * @param data which is used to update group user
    * @returns updated GroupUser data
-   * @author Vyacheslav Solovjov
    */
   service.publish('patched', async (data): Promise<any> => {
     try {
@@ -120,16 +106,6 @@ export default (app: Application) => {
         }
       })
       data.user = await app.service('user').get(data.userId)
-      // const avatarResult = await app.service('static-resource').find({
-      //   query: {
-      //     staticResourceType: 'user-thumbnail',
-      //     userId: data.userId
-      //   }
-      // }) as any;
-      //
-      // if (avatarResult.total > 0) {
-      //   data.user.dataValues.avatarUrl = avatarResult.data[0].url;
-      // }
 
       const targetIds = (groupUsers as any).data.map((groupUser) => {
         return groupUser.userId
@@ -153,7 +129,6 @@ export default (app: Application) => {
    *
    * @param data which contains groupId
    * @returns deleted channel data
-   * @author Vyacheslav Solovjov
    */
   service.publish('removed', async (data): Promise<any> => {
     try {

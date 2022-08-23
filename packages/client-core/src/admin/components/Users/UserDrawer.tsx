@@ -1,15 +1,15 @@
-import _ from 'lodash'
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AdminScopeType } from '@xrengine/common/src/interfaces/AdminScopeType'
-import { CreateEditUser, User } from '@xrengine/common/src/interfaces/User'
+import { CreateEditUser, UserInterface } from '@xrengine/common/src/interfaces/User'
 
 import Button from '@mui/material/Button'
+import Checkbox from '@mui/material/Checkbox'
 import Container from '@mui/material/Container'
 import DialogActions from '@mui/material/DialogActions'
-import DialogContentText from '@mui/material/DialogContentText'
 import DialogTitle from '@mui/material/DialogTitle'
+import FormControlLabel from '@mui/material/FormControlLabel'
 
 import { NotificationService } from '../../../common/services/NotificationService'
 import { useAuthState } from '../../../user/services/AuthService'
@@ -18,12 +18,10 @@ import DrawerView from '../../common/DrawerView'
 import InputSelect, { InputMenuItem } from '../../common/InputSelect'
 import InputText from '../../common/InputText'
 import { validateForm } from '../../common/validation/formValidation'
+import { AdminAvatarService, useAdminAvatarState } from '../../services/AvatarService'
 import { AdminScopeTypeService, useScopeTypeState } from '../../services/ScopeTypeService'
-import { AdminStaticResourceService, useStaticResourceState } from '../../services/StaticResourceService'
-import { AdminUserRoleService, useAdminUserRoleState } from '../../services/UserRoleService'
 import { AdminUserService } from '../../services/UserService'
 import styles from '../../styles/admin.module.scss'
-import CreateUserRole from './CreateUserRole'
 
 export enum UserDrawerMode {
   Create,
@@ -33,19 +31,18 @@ export enum UserDrawerMode {
 interface Props {
   open: boolean
   mode: UserDrawerMode
-  selectedUser?: User
+  selectedUser?: UserInterface
   onClose: () => void
 }
 
 const defaultState = {
   name: '',
   avatar: '',
-  userRole: '',
+  isGuest: true,
   scopes: [] as Array<AdminScopeType>,
   formErrors: {
     name: '',
     avatar: '',
-    userRole: '',
     scopes: ''
   }
 }
@@ -54,15 +51,13 @@ const UserDrawer = ({ open, mode, selectedUser, onClose }: Props) => {
   const { t } = useTranslation()
   const [editMode, setEditMode] = useState(false)
   const [state, setState] = useState({ ...defaultState })
-  const [openCreateUserRole, setOpenCreateUserRole] = useState(false)
 
   const { user } = useAuthState().value
-  const { userRole } = useAdminUserRoleState().value
-  const { staticResource } = useStaticResourceState().value
+  const { avatars } = useAdminAvatarState().value
   const { scopeTypes } = useScopeTypeState().value
 
   const hasWriteAccess = user.scopes && user.scopes.find((item) => item.type === 'user:write')
-  const viewMode = mode === UserDrawerMode.ViewEdit && editMode === false
+  const viewMode = mode === UserDrawerMode.ViewEdit && !editMode
 
   const scopeMenu: AutoCompleteData[] = scopeTypes.map((el) => {
     return {
@@ -70,17 +65,10 @@ const UserDrawer = ({ open, mode, selectedUser, onClose }: Props) => {
     }
   })
 
-  const staticResourceMenu: InputMenuItem[] = staticResource.map((el) => {
+  const avatarMenu: InputMenuItem[] = avatars.map((el) => {
     return {
       label: el.name,
-      value: el.name
-    }
-  })
-
-  const userRoleMenu: InputMenuItem[] = userRole.map((el) => {
-    return {
-      value: el.role,
-      label: el.role
+      value: el.id
     }
   })
 
@@ -94,27 +82,18 @@ const UserDrawer = ({ open, mode, selectedUser, onClose }: Props) => {
       }
     }
 
-    const staticResourceExists = staticResourceMenu.find((item) => item.value === selectedUser.avatarId)
-    if (!staticResourceExists) {
-      staticResourceMenu.push({
+    const avatarExists = avatars.find((item) => item.id === selectedUser.avatarId)
+    if (!avatarExists) {
+      avatarMenu.push({
         value: selectedUser.avatarId!,
         label: selectedUser.avatarId!
-      })
-    }
-
-    const userRoleExists = userRoleMenu.find((item) => item.value === selectedUser.userRole)
-    if (!userRoleExists) {
-      userRoleMenu.push({
-        value: selectedUser.userRole!,
-        label: selectedUser.userRole!
       })
     }
   }
 
   useEffect(() => {
-    AdminStaticResourceService.fetchStaticResource()
+    AdminAvatarService.fetchAdminAvatars()
     AdminScopeTypeService.getScopeTypeService()
-    AdminUserRoleService.fetchUserRole()
   }, [])
 
   useEffect(() => {
@@ -127,7 +106,7 @@ const UserDrawer = ({ open, mode, selectedUser, onClose }: Props) => {
         ...defaultState,
         name: selectedUser.name || '',
         avatar: selectedUser.avatarId || '',
-        userRole: selectedUser.userRole || '',
+        isGuest: selectedUser.isGuest,
         scopes: selectedUser.scopes?.map((el) => ({ type: el.type })) || []
       })
     }
@@ -147,12 +126,20 @@ const UserDrawer = ({ open, mode, selectedUser, onClose }: Props) => {
 
   const handleChangeScopeType = (scope) => {
     let tempErrors = {
-      ...state.formErrors,
-      scopes: scope.length < 1 ? t('admin:components.user.scopeTypeRequired') : ''
+      ...state.formErrors
     }
 
     setState({ ...state, scopes: scope, formErrors: tempErrors })
   }
+
+  const handleSelectAllScopes = () =>
+    handleChangeScopeType(
+      scopeTypes.map((el) => {
+        return { type: el.type }
+      })
+    )
+
+  const handleClearAllScopes = () => handleChangeScopeType([])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -166,9 +153,6 @@ const UserDrawer = ({ open, mode, selectedUser, onClose }: Props) => {
       case 'avatar':
         tempErrors.avatar = value.length < 2 ? t('admin:components.user.avatarRequired') : ''
         break
-      case 'userRole':
-        tempErrors.userRole = value.length < 2 ? t('admin:components.user.scopeTypeRequired') : ''
-        break
       default:
         break
     }
@@ -180,16 +164,14 @@ const UserDrawer = ({ open, mode, selectedUser, onClose }: Props) => {
     const data: CreateEditUser = {
       name: state.name,
       avatarId: state.avatar,
-      userRole: state.userRole,
-      scopes: state.scopes
+      isGuest: state.isGuest,
+      scopes: state.scopes as any
     }
 
     let tempErrors = {
       ...state.formErrors,
       name: state.name ? '' : t('admin:components.user.nameCantEmpty'),
-      avatar: state.avatar ? '' : t('admin:components.user.avatarCantEmpty'),
-      userRole: state.userRole ? '' : t('admin:components.user.userRoleCantEmpty'),
-      scopes: state.scopes.length > 0 ? '' : t('admin:components.user.scopeTypeCantEmpty')
+      avatar: state.avatar ? '' : t('admin:components.user.avatarCantEmpty')
     }
 
     setState({ ...state, formErrors: tempErrors })
@@ -209,119 +191,93 @@ const UserDrawer = ({ open, mode, selectedUser, onClose }: Props) => {
   }
 
   return (
-    <React.Fragment>
-      <DrawerView open={open} onClose={handleCancel}>
-        <Container maxWidth="sm" className={styles.mt20}>
-          <DialogTitle className={styles.textAlign}>
-            {mode === UserDrawerMode.Create && t('admin:components.user.createUser')}
-            {mode === UserDrawerMode.ViewEdit &&
-              editMode &&
-              `${t('admin:components.common.update')} ${selectedUser?.name}`}
-            {mode === UserDrawerMode.ViewEdit && !editMode && selectedUser?.name}
-          </DialogTitle>
+    <DrawerView open={open} onClose={handleCancel}>
+      <Container maxWidth="sm" className={styles.mt20}>
+        <DialogTitle className={styles.textAlign}>
+          {mode === UserDrawerMode.Create && t('admin:components.user.createUser')}
+          {mode === UserDrawerMode.ViewEdit &&
+            editMode &&
+            `${t('admin:components.common.update')} ${selectedUser?.name}`}
+          {mode === UserDrawerMode.ViewEdit && !editMode && selectedUser?.name}
+        </DialogTitle>
 
-          <InputText
-            name="name"
-            label={t('admin:components.user.name')}
-            value={state.name}
-            error={state.formErrors.name}
-            disabled={viewMode}
-            onChange={handleChange}
-          />
+        <InputText
+          name="name"
+          label={t('admin:components.user.name')}
+          value={state.name}
+          error={state.formErrors.name}
+          disabled={viewMode}
+          onChange={handleChange}
+        />
 
-          <InputSelect
-            name="avatar"
-            label={t('admin:components.user.avatar')}
-            value={state.avatar}
-            error={state.formErrors.avatar}
-            menu={staticResourceMenu}
-            disabled={viewMode}
-            onChange={handleChange}
-          />
+        <InputSelect
+          name="avatar"
+          label={t('admin:components.user.avatar')}
+          value={state.avatar}
+          error={state.formErrors.avatar}
+          menu={avatarMenu}
+          disabled={viewMode}
+          onChange={handleChange}
+        />
 
-          <InputSelect
-            name="userRole"
-            label={t('admin:components.user.userRole')}
-            value={state.userRole}
-            error={state.formErrors.userRole}
-            menu={userRoleMenu}
-            disabled={viewMode}
-            onChange={handleChange}
-          />
-
-          {viewMode && (
-            <>
-              <InputText
-                label={t('admin:components.user.location')}
-                value={selectedUser?.party?.location?.name || t('admin:components.index.none')}
-                disabled
-              />
-
-              <InputText
-                label={t('admin:components.user.inviteCode')}
-                value={selectedUser?.inviteCode || t('admin:components.index.none')}
-                disabled
-              />
-
-              <InputText
-                label={t('admin:components.user.instance')}
-                value={selectedUser?.party?.instance?.ipAddress || t('admin:components.index.none')}
-                disabled
-              />
-            </>
-          )}
-
-          {viewMode === false && (
-            <DialogContentText className={styles.mb15px}>
-              <span className={styles.select}>{t('admin:components.user.dontSeeUserRole')}</span>{' '}
-              <a href="#" className={styles.textLink} onClick={() => setOpenCreateUserRole(true)}>
-                {t('admin:components.user.createOne')}
-              </a>
-            </DialogContentText>
-          )}
-
-          {viewMode && (
-            <AutoComplete
-              data={scopeMenu}
-              label={t('admin:components.user.grantScope')}
-              defaultValue={state.scopes}
+        {viewMode && (
+          <>
+            <InputText
+              label={t('admin:components.user.inviteCode')}
+              value={selectedUser?.inviteCode || t('admin:components.common.none')}
               disabled
             />
-          )}
+          </>
+        )}
 
-          {viewMode === false && (
+        {viewMode && (
+          <FormControlLabel
+            className={styles.checkbox}
+            control={<Checkbox className={styles.checkedCheckbox} checked={selectedUser?.isGuest} disabled />}
+            label={t('admin:components.user.isGuest')}
+          />
+        )}
+
+        {viewMode && (
+          <AutoComplete data={scopeMenu} label={t('admin:components.user.grantScope')} value={state.scopes} disabled />
+        )}
+
+        {!viewMode && (
+          <div>
             <AutoComplete
               data={scopeMenu}
               label={t('admin:components.user.grantScope')}
-              defaultValue={state.scopes}
+              value={state.scopes}
               onChange={handleChangeScopeType}
             />
-          )}
+            <div className={styles.scopeButtons}>
+              <Button className={styles.outlinedButton} onClick={handleSelectAllScopes}>
+                {t('admin:components.user.selectAllScopes')}
+              </Button>
+              <Button className={styles.outlinedButton} onClick={handleClearAllScopes}>
+                {t('admin:components.user.clearAllScopes')}
+              </Button>
+            </div>
+          </div>
+        )}
 
-          <DialogActions>
-            {(mode === UserDrawerMode.Create || editMode) && (
-              <Button className={styles.submitButton} onClick={handleSubmit}>
-                {t('admin:components.common.submit')}
-              </Button>
-            )}
-            {mode === UserDrawerMode.ViewEdit && editMode === false && (
-              <Button
-                className={styles.submitButton}
-                disabled={hasWriteAccess ? false : true}
-                onClick={() => setEditMode(true)}
-              >
-                {t('admin:components.common.edit')}
-              </Button>
-            )}
-            <Button className={styles.cancelButton} onClick={handleCancel}>
-              {t('admin:components.common.cancel')}
+        <DialogActions>
+          <Button className={styles.outlinedButton} onClick={handleCancel}>
+            {t('admin:components.common.cancel')}
+          </Button>
+          {(mode === UserDrawerMode.Create || editMode) && (
+            <Button className={styles.gradientButton} onClick={handleSubmit}>
+              {t('admin:components.common.submit')}
             </Button>
-          </DialogActions>
-        </Container>
-      </DrawerView>
-
-      <CreateUserRole open={openCreateUserRole} onClose={() => setOpenCreateUserRole(false)} />
-    </React.Fragment>
+          )}
+          {mode === UserDrawerMode.ViewEdit && !editMode && (
+            <Button className={styles.gradientButton} disabled={!hasWriteAccess} onClick={() => setEditMode(true)}>
+              {t('admin:components.common.edit')}
+            </Button>
+          )}
+        </DialogActions>
+      </Container>
+    </DrawerView>
   )
 }
 

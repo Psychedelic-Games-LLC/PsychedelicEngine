@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Fragment } from 'react'
 
 import { AssetLoader } from '@xrengine/engine/src/assets/classes/AssetLoader'
 import { ImageFileTypes, VideoFileTypes } from '@xrengine/engine/src/assets/constants/fileTypes'
@@ -14,9 +14,6 @@ import InputGroup from './InputGroup'
 /**
  * VideoInput used to render component view for video inputs.
  *
- * @author Robert Long
- * @author Hanzla Mateen
- * @author David Gordon
  * @param       {function} onChange
  * @param       {any} rest
  * @constructor
@@ -39,12 +36,26 @@ export default function TexturePreviewInput({ value, onChange, ...rest }) {
     width: 'auto',
     height: 'auto'
   }
+  const { preview } = rest
+  const src = preview ?? value
+  const showPreview =
+    preview !== undefined ||
+    (typeof value === 'string' && [AssetClass.Image, AssetClass.Video].includes(AssetLoader.getAssetClass(value)))
   return (
     <ImageContainer>
       <Stack>
-        <TextureInput value={value} onChange={onChange} />
-        {AssetLoader.getAssetClass(value) === AssetClass.Image && <img src={value} style={previewStyle} />}
-        {AssetLoader.getAssetClass(value) === AssetClass.Video && <video src={value} style={previewStyle} />}
+        {showPreview && (
+          <Fragment>
+            <TextureInput value={src} onChange={onChange} />
+            {(typeof preview === 'string' ||
+              (typeof value === 'string' && AssetLoader.getAssetClass(value) === AssetClass.Image)) && (
+              <img src={src} style={previewStyle} alt="" crossOrigin="anonymous" />
+            )}
+            {typeof value === 'string' && AssetLoader.getAssetClass(value) === AssetClass.Video && (
+              <video src={src} style={previewStyle} />
+            )}
+          </Fragment>
+        )}
       </Stack>
     </ImageContainer>
   )

@@ -11,8 +11,7 @@ import {
   deserializeAudio,
   prepareAudioForGLTFExport,
   SCENE_COMPONENT_AUDIO,
-  serializeAudio,
-  updateAudio
+  serializeAudio
 } from './loaders/AudioFunctions'
 import {
   deserializeAudioSetting,
@@ -40,12 +39,18 @@ import {
   updateDirectionalLight
 } from './loaders/DirectionalLightFunctions'
 import {
+  deserializeDynamicLoad,
+  SCENE_COMPONENT_DYNAMIC_LOAD,
+  serializeDynamicLoad
+} from './loaders/DynamicLoadFunctions'
+import {
   deserializeEnvMapBake,
   SCENE_COMPONENT_ENVMAP_BAKE,
   serializeEnvMapBake,
   updateEnvMapBake
 } from './loaders/EnvMapBakeFunctions'
-import { deserializeEnvMap, SCENE_COMPONENT_ENVMAP, serializeEnvMap, updateEnvMap } from './loaders/EnvMapFunctions'
+import { deserializeEnvMap, SCENE_COMPONENT_ENVMAP, serializeEnvMap } from './loaders/EnvMapFunctions'
+import { deserializeEquippable, SCENE_COMPONENT_EQUIPPABLE, serializeEquippable } from './loaders/EquippableFunctions'
 import {
   deserializeFog,
   SCENE_COMPONENT_FOG,
@@ -80,8 +85,7 @@ import { deserializeInstancing, SCENE_COMPONENT_INSTANCING, serializeInstancing 
 import {
   deserializeInteractable,
   SCENE_COMPONENT_INTERACTABLE,
-  serializeInteractable,
-  updateInteractable
+  serializeInteractable
 } from './loaders/InteractableFunctions'
 import {
   deserializeInterior,
@@ -95,7 +99,7 @@ import {
   serializeLoopAnimation,
   updateLoopAnimation
 } from './loaders/LoopAnimationFunctions'
-import { deserializeMedia, SCENE_COMPONENT_MEDIA, serializeMedia, updateMedia } from './loaders/MediaFunctions'
+import { deserializeMedia, SCENE_COMPONENT_MEDIA, serializeMedia } from './loaders/MediaFunctions'
 import {
   deserializeMetaData,
   SCENE_COMPONENT_METADATA,
@@ -103,6 +107,7 @@ import {
   updateMetaData
 } from './loaders/MetaDataFunctions'
 import { deserializeModel, SCENE_COMPONENT_MODEL, serializeModel, updateModel } from './loaders/ModelFunctions'
+import { deserializeMountPoint, SCENE_COMPONENT_MOUNT_POINT, serializeMountPoint } from './loaders/MountPointFunctions'
 import { deserializeOcean, SCENE_COMPONENT_OCEAN, serializeOcean, updateOcean } from './loaders/OceanFunctions'
 import {
   deserializeParticleEmitter,
@@ -211,6 +216,11 @@ export const registerDefaultSceneFunctions = (world: World) => {
     serialize: serializeTransform
   })
 
+  world.sceneLoadingRegistry.set(SCENE_COMPONENT_DYNAMIC_LOAD, {
+    deserialize: deserializeDynamicLoad,
+    serialize: serializeDynamicLoad
+  })
+
   world.sceneLoadingRegistry.set(SCENE_COMPONENT_VISIBLE, {
     deserialize: deserializeVisible,
     serialize: serializeVisible
@@ -241,8 +251,7 @@ export const registerDefaultSceneFunctions = (world: World) => {
 
   world.sceneLoadingRegistry.set(SCENE_COMPONENT_ENVMAP, {
     deserialize: deserializeEnvMap,
-    serialize: serializeEnvMap,
-    update: updateEnvMap
+    serialize: serializeEnvMap
   })
 
   world.sceneLoadingRegistry.set(SCENE_COMPONENT_FOG, {
@@ -407,27 +416,23 @@ export const registerDefaultSceneFunctions = (world: World) => {
   world.sceneLoadingRegistry.set(SCENE_COMPONENT_AUDIO, {
     deserialize: deserializeAudio,
     serialize: serializeAudio,
-    update: updateAudio,
     prepareForGLTFExport: prepareAudioForGLTFExport
   })
 
   world.sceneLoadingRegistry.set(SCENE_COMPONENT_VIDEO, {
     deserialize: deserializeVideo,
     serialize: serializeVideo,
-    update: updateVideo,
     prepareForGLTFExport: prepareVideoForGLTFExport
   })
 
   world.sceneLoadingRegistry.set(SCENE_COMPONENT_MEDIA, {
     deserialize: deserializeMedia,
-    serialize: serializeMedia,
-    update: updateMedia
+    serialize: serializeMedia
   })
 
   world.sceneLoadingRegistry.set(SCENE_COMPONENT_INTERACTABLE, {
     deserialize: deserializeInteractable,
-    serialize: serializeInteractable,
-    update: updateInteractable
+    serialize: serializeInteractable
   })
 
   world.sceneLoadingRegistry.set(SCENE_COMPONENT_VOLUMETRIC, {
@@ -487,5 +492,15 @@ export const registerDefaultSceneFunctions = (world: World) => {
   world.sceneLoadingRegistry.set(SCENE_COMPONENT_SCREENSHARETARGET, {
     deserialize: deserializeScreenshareTarget,
     serialize: serializeScreenshareTarget
+  })
+
+  world.sceneLoadingRegistry.set(SCENE_COMPONENT_MOUNT_POINT, {
+    deserialize: deserializeMountPoint,
+    serialize: serializeMountPoint
+  })
+
+  world.sceneLoadingRegistry.set(SCENE_COMPONENT_EQUIPPABLE, {
+    deserialize: deserializeEquippable,
+    serialize: serializeEquippable
   })
 }

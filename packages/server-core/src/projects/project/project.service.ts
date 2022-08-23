@@ -1,10 +1,12 @@
 import { Id, NullableId, Params, ServiceMethods } from '@feathersjs/feathers'
+import appRootPath from 'app-root-path'
 import { iff, isProvider } from 'feathers-hooks-common'
+import fs from 'fs'
 import _ from 'lodash'
+import path from 'path'
 
 import { UserInterface } from '@xrengine/common/src/dbmodels/UserInterface'
 import logger from '@xrengine/common/src/logger'
-import restrictUserRole from '@xrengine/server-core/src/hooks/restrict-user-role'
 
 import { Application } from '../../../declarations'
 import authenticate from '../../hooks/authenticate'
@@ -12,14 +14,18 @@ import projectPermissionAuthenticate from '../../hooks/project-permission-authen
 import verifyScope from '../../hooks/verify-scope'
 import { getStorageProvider } from '../../media/storageprovider/storageprovider'
 import { pushProjectToGithub } from '../githubapp/githubapp-helper'
-import { retriggerBuilderService } from './project-helper'
+import { checkBuilderService, retriggerBuilderService } from './project-helper'
 import { Project } from './project.class'
 import projectDocs from './project.docs'
 import hooks from './project.hooks'
 import createModel from './project.model'
 
+const projectsRootFolder = path.join(appRootPath.path, 'packages/projects/projects/')
 declare module '@xrengine/common/declarations' {
   interface ServiceTypes {
+    projects: {
+      find: () => ReturnType<typeof getProjectsList>
+    }
     project: Project
     'project-build': any
     'project-invalidate': any
@@ -28,6 +34,15 @@ declare module '@xrengine/common/declarations' {
   interface Models {
     project: ReturnType<typeof createModel>
   }
+}
+
+/**
+ * returns a list of projects installed by name from their folder names
+ */
+export const getProjectsList = async () => {
+  return fs
+    .readdirSync(projectsRootFolder)
+    .filter((projectFolder) => fs.existsSync(path.join(projectsRootFolder, projectFolder, 'xrengine.config.ts')))
 }
 
 export default (app: Application): void => {
@@ -44,7 +59,20 @@ export default (app: Application): void => {
 
   // TODO: move these to sub-methods of 'project' service
 
+  app.use('projects', {
+    find: getProjectsList
+  })
+
+  app.service('projects').hooks({
+    before: {
+      find: [authenticate()]
+    }
+  })
+
   app.use('project-build', {
+    find: async (data, params) => {
+      return await checkBuilderService(app)
+    },
     patch: async ({ rebuild }, params) => {
       if (rebuild) {
         return await retriggerBuilderService(app)
@@ -62,13 +90,14 @@ export default (app: Application): void => {
 
   app.service('project-build').hooks({
     before: {
-      patch: [authenticate(), restrictUserRole('admin')]
+      find: [authenticate(), verifyScope('admin', 'admin')],
+      patch: [authenticate(), verifyScope('admin', 'admin')]
     }
   })
 
   app.service('project-invalidate').hooks({
     before: {
-      patch: [authenticate(), restrictUserRole('admin')]
+      patch: [authenticate(), verifyScope('admin', 'admin')]
     }
   })
 
@@ -107,9 +136,14 @@ export default (app: Application): void => {
       })
       targetIds = targetIds.concat(projectOwners.map((permission) => permission.userId))
       const admins = await app.service('user').Model.findAll({
-        where: {
-          userRole: 'admin'
-        }
+        include: [
+          {
+            model: app.service('scope').Model,
+            where: {
+              type: 'admin:admin'
+            }
+          }
+        ]
       })
       targetIds = targetIds.concat(admins.map((admin) => admin.id))
       targetIds = _.uniq(targetIds)

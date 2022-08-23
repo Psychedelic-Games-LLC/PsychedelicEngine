@@ -1,3 +1,4 @@
+import * as chapiWalletPolyfill from 'credential-handler-polyfill'
 import { SnackbarProvider } from 'notistack'
 import React, { createRef, useCallback, useEffect, useState } from 'react'
 import { Helmet } from 'react-helmet'
@@ -14,6 +15,7 @@ import { theme } from '@xrengine/client-core/src/theme'
 import { useAuthState } from '@xrengine/client-core/src/user/services/AuthService'
 import GlobalStyle from '@xrengine/client-core/src/util/GlobalStyle'
 import { matches } from '@xrengine/engine/src/common/functions/MatchesUtils'
+import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
 import { loadWebappInjection } from '@xrengine/projects/loadWebappInjection'
 
 import { StyledEngineProvider, Theme, ThemeProvider } from '@mui/material/styles'
@@ -22,7 +24,10 @@ import RouterComp from '../route/public'
 
 import './styles.scss'
 
+import { API } from '@xrengine/client-core/src/API'
 import { NotificationAction, NotificationActions } from '@xrengine/client-core/src/common/services/NotificationService'
+import { getCurrentTheme } from '@xrengine/common/src/constants/DefaultThemeSettings'
+import { AudioEffectPlayer } from '@xrengine/engine/src/audio/systems/AudioSystem'
 import { addActionReceptor, removeActionReceptor } from '@xrengine/hyperflux'
 
 declare module '@mui/styles/defaultTheme' {
@@ -45,7 +50,7 @@ const App = (): any => {
   const [favicon32, setFavicon32] = useState(clientSetting?.favicon32px)
   const [description, setDescription] = useState(clientSetting?.siteDescription)
   const [clientThemeSettings, setClientThemeSettings] = useState(clientSetting?.themeSettings)
-  const [projectComponents, setProjectComponents] = useState<Array<any>>(null!)
+  const [projectComponents, setProjectComponents] = useState<Array<any>>([])
   const [fetchedProjectComponents, setFetchedProjectComponents] = useState(false)
   const projectState = useProjectState()
 
@@ -63,6 +68,7 @@ const App = (): any => {
   useEffect(() => {
     const receptor = (action): any => {
       matches(action).when(NotificationAction.notify.matches, (action) => {
+        AudioEffectPlayer.instance.play(AudioEffectPlayer.SOUNDS.alert, 0.5)
         notistackRef.current?.enqueueSnackbar(action.message, {
           variant: action.options.variant,
           action: NotificationActions[action.options.actionType ?? 'default']
@@ -79,46 +85,42 @@ const App = (): any => {
   useEffect(() => {
     const html = document.querySelector('html')
     if (html) {
-      const currentTheme = selfUser?.user_setting?.value?.themeMode || 'dark'
+      const currentTheme = getCurrentTheme(selfUser?.user_setting?.value?.themeModes)
       html.dataset.theme = currentTheme
 
-      if (clientThemeSettings) {
-        if (currentTheme === 'light' && clientThemeSettings?.light) {
-          for (let variable of Object.keys(clientThemeSettings.light)) {
-            ;(document.querySelector(`[data-theme=light]`) as any)?.style.setProperty(
-              '--' + variable,
-              clientThemeSettings.light[variable]
-            )
-          }
-        } else if (currentTheme === 'dark' && clientThemeSettings?.dark) {
-          for (let variable of Object.keys(clientThemeSettings.dark)) {
-            ;(document.querySelector(`[data-theme=dark]`) as any)?.style.setProperty(
-              '--' + variable,
-              clientThemeSettings.dark[variable]
-            )
-          }
-        }
-      }
+      updateTheme()
     }
   }, [selfUser?.user_setting?.value])
 
   useEffect(initApp, [])
 
   useEffect(() => {
-    if (selfUser?.id && projectState.updateNeeded.value) ProjectService.fetchProjects()
+    chapiWalletPolyfill
+      .loadOnce()
+      .then(() => console.log('CHAPI wallet polyfill loaded.'))
+      .catch((e) => console.error('Error loading polyfill:', e))
+  }, [])
+
+  useEffect(() => {
+    if (selfUser?.id.value && projectState.updateNeeded.value) {
+      ProjectService.fetchProjects()
+      if (!fetchedProjectComponents) {
+        setFetchedProjectComponents(true)
+        API.instance.client
+          .service('projects')
+          .find()
+          .then((projects) => {
+            loadWebappInjection(projects).then((result) => {
+              setProjectComponents(result)
+            })
+          })
+      }
+    }
   }, [selfUser, projectState.updateNeeded.value])
 
   useEffect(() => {
-    if (projectState.projects.value.length > 0 && !fetchedProjectComponents) {
-      setFetchedProjectComponents(true)
-      loadWebappInjection(
-        {},
-        projectState.projects.value.map((project) => project.name)
-      ).then((result) => {
-        setProjectComponents(result)
-      })
-    }
-  }, [projectState.projects.value])
+    Engine.instance.userId = selfUser.id.value
+  }, [selfUser.id])
 
   useEffect(() => {
     if (clientSetting) {
@@ -132,26 +134,23 @@ const App = (): any => {
   }, [clientSettingState?.updateNeeded?.value])
 
   useEffect(() => {
-    const currentTheme = selfUser?.user_setting?.value?.themeMode || 'dark'
+    updateTheme()
+  }, [clientThemeSettings])
 
+  const currentTheme = getCurrentTheme(selfUser?.user_setting?.value?.themeModes)
+
+  const updateTheme = () => {
     if (clientThemeSettings) {
-      if (currentTheme === 'light' && clientThemeSettings?.light) {
-        for (let variable of Object.keys(clientThemeSettings.light)) {
-          ;(document.querySelector(`[data-theme=light]`) as any)?.style.setProperty(
+      if (clientThemeSettings?.[currentTheme]) {
+        for (let variable of Object.keys(clientThemeSettings[currentTheme])) {
+          ;(document.querySelector(`[data-theme=${currentTheme}]`) as any)?.style.setProperty(
             '--' + variable,
-            clientThemeSettings.light[variable]
-          )
-        }
-      } else if (currentTheme === 'dark' && clientThemeSettings?.dark) {
-        for (let variable of Object.keys(clientThemeSettings.dark)) {
-          ;(document.querySelector(`[data-theme=dark]`) as any)?.style.setProperty(
-            '--' + variable,
-            clientThemeSettings.dark[variable]
+            clientThemeSettings[currentTheme][variable]
           )
         }
       }
     }
-  }, [clientThemeSettings])
+  }
 
   return (
     <>
@@ -161,6 +160,7 @@ const App = (): any => {
           name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no"
         />
+        <meta name="theme-color" content={clientThemeSettings?.[currentTheme]?.mainBackground || '#FFFFFF'} />
         {description && <meta name="description" content={description}></meta>}
         {favicon16 && <link rel="icon" type="image/png" sizes="16x16" href={favicon16} />}
         {favicon32 && <link rel="icon" type="image/png" sizes="32x32" href={favicon32} />}
@@ -175,7 +175,9 @@ const App = (): any => {
           >
             <GlobalStyle />
             <RouterComp />
-            {projectComponents}
+            {projectComponents.map((Component, i) => (
+              <Component key={i} />
+            ))}
           </SnackbarProvider>
         </ThemeProvider>
       </StyledEngineProvider>

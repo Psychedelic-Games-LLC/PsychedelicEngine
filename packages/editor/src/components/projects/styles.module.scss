@@ -1,3 +1,21 @@
+.profileButton {
+  display: flex;
+  align-items: center;
+  color: var(--textColor);
+  background: transparent;
+  margin-left: auto;
+
+  span {
+    margin-right: 5px;
+    font-size: 14px;
+  }
+
+  &:hover,
+  &:focus-visible {
+    color: var(--green);
+  }
+}
+
 .navbar {
   width: 100%;
   display: flex;
@@ -19,23 +37,6 @@
       background-position-y: 50%;
     }
 
-    .profileButton {
-      display: flex;
-      align-items: center;
-      color: var(--textColor);
-      background: transparent;
-
-      span {
-        margin-right: 5px;
-        font-size: 14px;
-      }
-
-      &:hover,
-      &:focus-visible {
-        color: var(--green);
-      }
-    }
-
     .backdrop {
       position: fixed;
       width: 100vw;
@@ -44,26 +45,6 @@
       left: 0;
       background: #00000080;
       z-index: 100;
-    }
-
-    .profileMenuBlock {
-      position: absolute;
-      right: 25px;
-      top: 0;
-
-      .profileMenuContainer {
-        z-index: 100;
-        top: 70px;
-        bottom: unset;
-        right: 0;
-        left: unset;
-        transform: unset;
-        border-radius: 10px;
-
-        div[class^="_closeButton"] {
-          display: none;
-        }
-      }
     }
   }
 }
@@ -117,6 +98,7 @@
         font-size: 16px;
         flex-shrink: 0;
         background: linear-gradient(90deg, var(--buttonGradientStart), var(--buttonGradientEnd));
+        color: var(--textColor);
       }
 
       .searchInputRoot {
@@ -616,4 +598,8 @@
 
 .iconButton {
   color: var(--iconButtonColor);
+}
+
+.profilePaper {
+  background-color: transparent;
 }

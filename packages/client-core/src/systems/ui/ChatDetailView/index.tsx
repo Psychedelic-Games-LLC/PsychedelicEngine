@@ -1,14 +1,17 @@
-import { createState } from '@speigg/hookstate'
+import { createState, useHookstate } from '@hookstate/core'
 import React, { Fragment, useRef, useState } from 'react'
 
 import { useAuthState } from '@xrengine/client-core/src/user/services/AuthService'
+import { WorldState } from '@xrengine/engine/src/networking/interfaces/WorldState'
 import { createXRUI } from '@xrengine/engine/src/xrui/functions/createXRUI'
+import { getState } from '@xrengine/hyperflux'
 
 import { Send } from '@mui/icons-material'
 import Avatar from '@mui/material/Avatar'
 
 import { useChatHooks } from '../../../components/InstanceChat'
 import { getAvatarURLForUser } from '../../../user/components/UserMenu/util'
+import XRInput from '../../components/XRInput'
 import styleString from './index.scss'
 
 export function createChatDetailView() {
@@ -30,9 +33,7 @@ const ChatDetailView = () => {
 
   const user = useAuthState().user
 
-  const isLeftOrJoinText = (text: string) => {
-    return / left the layer|joined the layer/.test(text)
-  }
+  const userAvatarDetails = useHookstate(getState(WorldState).userAvatarDetails)
 
   return (
     <>
@@ -42,12 +43,24 @@ const ChatDetailView = () => {
           {sortedMessages.map((message, index, messages) => {
             return (
               <Fragment key={index}>
-                {!isLeftOrJoinText(message.text) ? (
+                {message.isNotification ? (
+                  <div key={message.id} className="selfEnd noMargin">
+                    <div className="dFlex">
+                      <div className="msgNotification mx2">
+                        <p className="greyText">{message.text}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
                   <div key={index} className="dFlex flexColumn mgSmall">
                     <div className="selfEnd noMargin">
-                      <div className="dFlex">
+                      <div
+                        className={`${
+                          message.senderId !== user?.id.value ? 'msgReplyContainer' : 'msgOwner'
+                        } msgContainer dFlex`}
+                      >
                         <div className="msgWrapper">
-                          {messages[index - 1] && isLeftOrJoinText(messages[index - 1].text) ? (
+                          {messages[index - 1] && messages[index - 1].isNotification ? (
                             <h3 className="sender">{message.sender.name}</h3>
                           ) : (
                             messages[index - 1] &&
@@ -55,31 +68,19 @@ const ChatDetailView = () => {
                               <h3 className="sender">{message.sender.name}</h3>
                             )
                           )}
-                          <div
-                            className={`${
-                              message.senderId !== user?.id.value ? 'msgReplyContainer' : 'msgOwner'
-                            } msgContainer mx2`}
-                          >
-                            <p className="text">{message.text}</p>
-                          </div>
+                          <p className="text">{message.text}</p>
                         </div>
-                        {index !== 0 && messages[index - 1] && isLeftOrJoinText(messages[index - 1].text) ? (
-                          <Avatar src={getAvatarURLForUser(message.senderId)} className="avatar" />
+                        {index !== 0 && messages[index - 1] && messages[index - 1].isNotification ? (
+                          <Avatar src={getAvatarURLForUser(userAvatarDetails, message.senderId)} className="avatar" />
                         ) : (
                           messages[index - 1] &&
                           message.senderId !== messages[index - 1].senderId && (
-                            <Avatar src={getAvatarURLForUser(message.senderId)} className="avatar" />
+                            <Avatar src={getAvatarURLForUser(userAvatarDetails, message.senderId)} className="avatar" />
                           )
                         )}
-                        {index === 0 && <Avatar src={getAvatarURLForUser(message.senderId)} className="avatar" />}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div key={message.id} className="selfEnd noMargin">
-                    <div className="dFlex">
-                      <div className="msgNotification mx2">
-                        <p className="greyText">{message.text}</p>
+                        {index === 0 && (
+                          <Avatar src={getAvatarURLForUser(userAvatarDetails, message.senderId)} className="avatar" />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -89,7 +90,7 @@ const ChatDetailView = () => {
           })}
         </div>
         <div className="messageBoxContainer">
-          <input
+          <XRInput
             className="messageInputBox"
             id="newMessage"
             placeholder={'World Chat...'}
@@ -97,10 +98,10 @@ const ChatDetailView = () => {
             value={composingMessage}
             onChange={handleComposingMessageChange}
             onKeyDown={(evt) => handleComposingMessageChange(evt)}
+            endIcon={<Send fontSize="small" />}
+            endIconClick={packageMessage}
+            border={false}
           />
-          <div onClick={packageMessage} className="sendButton">
-            <Send fontSize="small" />
-          </div>
         </div>
       </div>
     </>

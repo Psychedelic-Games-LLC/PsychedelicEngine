@@ -12,19 +12,13 @@
         {
           "name": "audio-settings",
           "props": {
-            "usePositionalAudio": true,
-            "avatarDistanceModel": "inverse",
-            "avatarRolloffFactor": 2,
-            "avatarRefDistance": 1,
-            "avatarMaxDistance": 10000,
-            "mediaVolume": 0.5,
-            "mediaDistanceModel": "inverse",
-            "mediaRolloffFactor": 1,
-            "mediaRefDistance": 1,
-            "mediaMaxDistance": 10000,
-            "mediaConeInnerAngle": 360,
-            "mediaConeOuterAngle": 0,
-            "mediaConeOuterGain": 0
+            "refDistance": 20,
+            "rolloffFactor": 1,
+            "maxDistance": 10000,
+            "distanceModel": "linear",
+            "coneInnerAngle": 360,
+            "coneOuterAngle": 0,
+            "coneOuterGain": 0
           }
         },
         {
@@ -71,8 +65,7 @@
                 "y": 1,
                 "z": 1
               }
-            },
-            "forModel": false
+            }
           }
         },
         {
@@ -82,7 +75,6 @@
               "bakeType": "Baked",
               "resolution": 2048,
               "refreshMode": "OnAwake",
-              "envMapOrigin": "__$project$__/default-project/apartment.envmap.png",
               "boxProjection": true,
               "bakePosition": {
                 "x": 0,
@@ -116,9 +108,9 @@
               "z": -6.339259624481201
             },
             "rotation": {
-              "x": -2.7229010428794185,
-              "y": -0.3808815581541687,
-              "z": -2.977651941923775
+              "x": -2.722900944966216,
+              "y": -0.38088153773972566,
+              "z": -2.977651845061854
             },
             "scale": {
               "x": 1,
@@ -142,26 +134,6 @@
     },
     "ED0888E7-4032-4DD9-9B43-59B02ECCCB7E": {
       "components": [
-        {
-          "name": "transform",
-          "props": {
-            "position": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "rotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
         {
           "name": "visible",
           "props": {}
@@ -272,26 +244,6 @@
     "1B698484-C15A-4CEC-9247-03873520DF70": {
       "components": [
         {
-          "name": "transform",
-          "props": {
-            "position": {
-              "x": 0,
-              "y": 10,
-              "z": 0
-            },
-            "rotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
           "name": "visible",
           "props": {}
         },
@@ -310,26 +262,6 @@
     },
     "42F3C84A-D663-492F-90C5-1DED5011996A": {
       "components": [
-        {
-          "name": "transform",
-          "props": {
-            "position": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "rotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
         {
           "name": "visible",
           "props": {}
@@ -361,7 +293,7 @@
                 "xRay": true
               },
               "SSAOEffect": {
-                "isActive": true,
+                "isActive": false,
                 "blendFunction": 10,
                 "distanceScaling": true,
                 "depthAwareUpsampling": true,
@@ -436,9 +368,9 @@
               "z": 0.5
             },
             "rotation": {
-              "x": -1.2025318056747563,
-              "y": -0.4572762556646684,
-              "z": -1.0530810346514675e-8
+              "x": -1.202531834261702,
+              "y": -0.4572762621960275,
+              "z": -2.017327418528485e-8
             },
             "scale": {
               "x": 1,
@@ -499,10 +431,11 @@
           "name": "gltf-model",
           "props": {
             "src": "__$project$__/default-project/assets/apartment.glb",
-            "textureOverride": "",
+            "materialOverrides": [],
+            "generateBVH": true,
             "matrixAutoUpdate": true,
-            "isUsingGPUInstancing": false,
-            "isDynamicObject": false
+            "useBasicMaterial": false,
+            "isUsingGPUInstancing": false
           }
         },
         {
@@ -513,13 +446,9 @@
           }
         },
         {
-          "name": "interactable",
-          "props": {}
-        },
-        {
           "name": "envmap",
           "props": {
-            "type": "None",
+            "type": "Skybox",
             "envMapTextureType": "Cubemap",
             "envMapSourceColor": 1193046,
             "envMapSourceURL": "/hdr/cubemap/skyboxsun25deg/",
@@ -545,8 +474,7 @@
                 "y": 1,
                 "z": 1
               }
-            },
-            "forModel": true
+            }
           }
         }
       ],
@@ -787,9 +715,9 @@
               "z": 3
             },
             "rotation": {
-              "x": -5.8365159420641365e-18,
+              "x": -5.8365031047939326e-18,
               "y": 0.05759586483318637,
-              "z": 2.7795421078617295e-16
+              "z": 2.779542104163839e-16
             },
             "scale": {
               "x": 0.5,
@@ -824,9 +752,9 @@
               "z": -2.3505780696868896
             },
             "rotation": {
-              "x": -5.875937832995113e-18,
-              "y": -0.12936496012163695,
-              "z": 2.768601881633056e-16
+              "x": 0,
+              "y": -0.1221730502166255,
+              "z": 0
             },
             "scale": {
               "x": 0.4000000059604645,
@@ -915,7 +843,7 @@
           "props": {
             "position": {
               "x": -12,
-              "y": 0,
+              "y": 1.5,
               "z": 14
             },
             "rotation": {
@@ -924,9 +852,9 @@
               "z": 0
             },
             "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
+              "x": 0.5,
+              "y": 0.5,
+              "z": 0.5
             }
           }
         },
@@ -947,114 +875,32 @@
             "location": "sky-station",
             "linkedPortalId": "2803BAE7-F4F7-42FC-A95E-BC0F028492F2",
             "redirect": false,
+            "effectType": "Hyperspace",
+            "previewType": "Spherical",
+            "previewImageURL": "__$project$__/default-project/apartment-Portal.png",
             "spawnPosition": {
               "x": -12,
               "y": 0,
-              "z": 11
+              "z": 14
             },
             "spawnRotation": {
               "x": 0,
               "y": 0,
-              "z": 0
+              "z": 0,
+              "w": 1
             }
           }
         },
         {
           "name": "trigger-volume",
-          "props": {}
+          "props": {
+            "onEnter": "teleport"
+          }
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
       "index": 17,
       "name": "Portal"
-    },
-    "BE903182-9BF6-4761-BD32-3DDCD4638D57": {
-      "components": [
-        {
-          "name": "transform",
-          "props": {
-            "position": {
-              "x": -12,
-              "y": -1,
-              "z": 14
-            },
-            "rotation": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "scale": {
-              "x": 1,
-              "y": 1,
-              "z": 1
-            }
-          }
-        },
-        {
-          "name": "visible",
-          "props": {}
-        },
-        {
-          "name": "shadow",
-          "props": {
-            "cast": true,
-            "receive": true
-          }
-        },
-        {
-          "name": "gltf-model",
-          "props": {
-            "src": "__$project$__/default-project/assets/portal_frame.glb",
-            "textureOverride": "",
-            "matrixAutoUpdate": true,
-            "isUsingGPUInstancing": false,
-            "isDynamicObject": false
-          }
-        },
-        {
-          "name": "loop-animation",
-          "props": {
-            "activeClipIndex": -1,
-            "hasAvatarAnimations": false
-          }
-        },
-        {
-          "name": "envmap",
-          "props": {
-            "type": "None",
-            "envMapTextureType": "Cubemap",
-            "envMapSourceColor": 1193046,
-            "envMapSourceURL": "/hdr/cubemap/skyboxsun25deg/",
-            "envMapIntensity": 1,
-            "envMapBake": {
-              "bakeType": "Baked",
-              "resolution": 2048,
-              "refreshMode": "OnAwake",
-              "envMapOrigin": "",
-              "boxProjection": true,
-              "bakePosition": {
-                "x": 0,
-                "y": 0,
-                "z": 0
-              },
-              "bakePositionOffset": {
-                "x": 0,
-                "y": 0,
-                "z": 0
-              },
-              "bakeScale": {
-                "x": 1,
-                "y": 1,
-                "z": 1
-              }
-            },
-            "forModel": true
-          }
-        }
-      ],
-      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 18,
-      "name": "Model"
     },
     "93ab7fe5-1433-4adf-8366-a3ed50b61224": {
       "components": [
@@ -1096,8 +942,103 @@
         }
       ],
       "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
-      "index": 7,
+      "index": 18,
       "name": "Fog"
+    },
+    "2057cac5-6a0c-42f3-ba03-16eb9ef5fbd7": {
+      "components": [
+        {
+          "name": "transform",
+          "props": {
+            "position": {
+              "x": -3.351901054382324,
+              "y": 0.6000000238418579,
+              "z": -2.362102746963501
+            },
+            "rotation": {
+              "x": 3.141592653589793,
+              "y": -1.4137173529194187,
+              "z": 3.141592653589793
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "name": "visible",
+          "props": {}
+        },
+        {
+          "name": "mount-point",
+          "props": {
+            "type": "seat"
+          }
+        }
+      ],
+      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
+      "index": 19,
+      "name": "Chair"
+    },
+    "61912c25-8a83-4f28-bc42-7e132599cea9": {
+      "components": [
+        {
+          "name": "transform",
+          "props": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          }
+        },
+        {
+          "name": "visible",
+          "props": {}
+        },
+        {
+          "name": "media",
+          "props": {
+            "paths": [
+              "__$project$__/default-project/assets/apartment-ambience.mp3"
+            ],
+            "playMode": 3,
+            "controls": false,
+            "autoplay": true,
+            "autoStartTime": 0
+          }
+        },
+        {
+          "name": "audio",
+          "props": {
+            "volume": 0.1,
+            "audioType": "Positional",
+            "isMusic": false,
+            "distanceModel": "inverse",
+            "rolloffFactor": 2,
+            "refDistance": 20,
+            "maxDistance": 10000,
+            "coneInnerAngle": 360,
+            "coneOuterAngle": 0,
+            "coneOuterGain": 0
+          }
+        }
+      ],
+      "parent": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC",
+      "index": 20,
+      "name": "Audio - Ambience"
     }
   },
   "root": "2266BED7-6CC4-48A6-95DD-9BCD3CF9EAFC"

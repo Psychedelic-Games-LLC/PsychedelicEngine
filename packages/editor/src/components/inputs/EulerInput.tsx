@@ -10,7 +10,6 @@ const euler = new Euler()
 /**
  * Type aliase created EulerInputProps.
  *
- * @author Robert Long
  * @type {Object}
  */
 type EulerInputProps = {
@@ -22,7 +21,6 @@ type EulerInputProps = {
 /**
  * FileIEulerInputnput used to show EulerInput.
  *
- * @author Robert Long
  * @type {Object}
  */
 export const EulerInput = (props: EulerInputProps) => {
@@ -36,6 +34,7 @@ export const EulerInput = (props: EulerInputProps) => {
 
   return (
     <Vector3InputContainer>
+      <UniformButtonContainer />
       <NumericInput
         value={vx}
         onChange={(x) => onChange(x, vy, vz)}
@@ -66,7 +65,6 @@ export const EulerInput = (props: EulerInputProps) => {
           </Vector3Scrubber>
         }
       />
-      <UniformButtonContainer />
     </Vector3InputContainer>
   )
 }

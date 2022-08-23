@@ -1,5 +1,5 @@
-import { createState } from '@speigg/hookstate'
-import { useState } from '@speigg/hookstate'
+import { createState } from '@hookstate/core'
+import { useState } from '@hookstate/core'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -28,11 +28,12 @@ const AvatarDetailView = () => {
   const detailState = useXRUIState<AvatarDetailState>()
   const userState = useUserState()
   const user = userState.layerUsers.find((user) => user.id.value === detailState.id.value)
-  const worldState = useEngineState()
-  const usersTyping = useState(worldState.usersTyping[detailState.id.value]).value
+  const engineState = useEngineState()
+  const usersTyping = useState(engineState.usersTyping[detailState.id.value]).value
 
   return (
     <>
+      <link href="https://fonts.googleapis.com/css?family=Lato:400" rel="stylesheet" type="text/css" />
       <style>{styleString}</style>
       {user && (
         <div className="avatarName">

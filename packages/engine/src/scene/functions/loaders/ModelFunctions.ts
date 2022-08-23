@@ -1,37 +1,39 @@
-import { Mesh, Texture } from 'three'
+import { Object3D, Texture } from 'three'
 
 import { ComponentJson } from '@xrengine/common/src/interfaces/SceneInterface'
 
 import { AssetLoader } from '../../../assets/classes/AssetLoader'
 import { GLTF } from '../../../assets/loaders/gltf/GLTFLoader'
-import {
-  ComponentDeserializeFunction,
-  ComponentSerializeFunction,
-  ComponentUpdateFunction
-} from '../../../common/constants/PrefabFunctionType'
+import { ComponentDeserializeFunction, ComponentSerializeFunction } from '../../../common/constants/PrefabFunctionType'
 import { isClient } from '../../../common/functions/isClient'
+import { Engine } from '../../../ecs/classes/Engine'
 import { Entity } from '../../../ecs/classes/Entity'
 import { addComponent, getComponent, hasComponent, removeComponent } from '../../../ecs/functions/ComponentFunctions'
+import {
+  setBoundingBoxComponent,
+  setBoundingBoxDynamicTag
+} from '../../../interaction/components/BoundingBoxComponents'
 import { EntityNodeComponent } from '../../components/EntityNodeComponent'
 import { MaterialOverrideComponentType } from '../../components/MaterialOverrideComponent'
 import { ModelComponent, ModelComponentType } from '../../components/ModelComponent'
-import { Object3DComponent } from '../../components/Object3DComponent'
+import { Object3DComponent, Object3DWithEntity } from '../../components/Object3DComponent'
 import { SimpleMaterialTagComponent } from '../../components/SimpleMaterialTagComponent'
-import cloneObject3D from '../cloneObject3D'
+import { ObjectLayers } from '../../constants/ObjectLayers'
+import { generateMeshBVH } from '../bvhWorkerPool'
 import { addError, removeError } from '../ErrorFunctions'
-import { overrideTexture, parseGLTFModel } from '../loadGLTFModel'
+import { parseGLTFModel } from '../loadGLTFModel'
+import { enableObjectLayer } from '../setObjectLayers'
 import { initializeOverride } from './MaterialOverrideFunctions'
 
 export const SCENE_COMPONENT_MODEL = 'gltf-model'
 export const SCENE_COMPONENT_MODEL_DEFAULT_VALUE = {
   src: '',
-  textureOverride: '',
   materialOverrides: [] as MaterialOverrideComponentType[],
+  generateBVH: false,
   matrixAutoUpdate: true,
   useBasicMaterial: false,
-  isUsingGPUInstancing: false,
-  isDynamicObject: false
-}
+  isUsingGPUInstancing: false
+} as ModelComponentType
 
 export const deserializeModel: ComponentDeserializeFunction = (
   entity: Entity,
@@ -42,31 +44,56 @@ export const deserializeModel: ComponentDeserializeFunction = (
 
   getComponent(entity, EntityNodeComponent)?.components.push(SCENE_COMPONENT_MODEL)
   //add material override components
-  if (isClient && model.materialOverrides.length > 0) {
-    Promise.all(model.materialOverrides.map((override, i) => initializeOverride(entity, override)())).then(
-      (overrides) => (model.materialOverrides = overrides)
-    )
-  }
-  updateModel(entity, props)
+  const modelInitProm = updateModel(entity, props)
+  Engine.instance.currentWorld.sceneLoadingPendingAssets.add(modelInitProm)
+  modelInitProm.then(async () => {
+    if (isClient && model.materialOverrides.length > 0) {
+      const overrides = await Promise.all(
+        model.materialOverrides.map((override, i) => initializeOverride(entity, override)())
+      )
+      model.materialOverrides = overrides
+    }
+  })
 }
 
-export const updateModel: ComponentUpdateFunction = (entity: Entity, properties: ModelComponentType) => {
-  const component = getComponent(entity, ModelComponent)
+export const updateModel = async (entity: Entity, properties: ModelComponentType) => {
+  let scene: Object3DWithEntity
   if (properties.src) {
     try {
       hasComponent(entity, Object3DComponent) && removeComponent(entity, Object3DComponent)
-      const gltf = AssetLoader.getFromCache(properties.src) as GLTF
-      const scene = cloneObject3D(gltf.scene)
+      switch (/\.[\d\s\w]+$/.exec(properties.src)![0]) {
+        case '.glb':
+        case '.gltf':
+          const gltf = (await AssetLoader.loadAsync(properties.src, {
+            ignoreDisposeGeometry: properties.generateBVH
+          })) as GLTF
+          scene = gltf.scene as any
+          break
+        case '.fbx':
+          scene = (await AssetLoader.loadAsync(properties.src, { ignoreDisposeGeometry: properties.generateBVH })).scene
+          break
+        default:
+          scene = new Object3D() as Object3DWithEntity
+          break
+      }
       addComponent(entity, Object3DComponent, { value: scene })
-      parseGLTFModel(entity, component, scene)
+      setBoundingBoxComponent(entity)
+      parseGLTFModel(entity)
+      if (properties.generateBVH) {
+        scene.traverse(generateMeshBVH)
+      }
       removeError(entity, 'srcError')
     } catch (err) {
+      console.error(err)
       addError(entity, 'srcError', err.message)
     }
   }
 
-  if (typeof properties.textureOverride !== 'undefined') {
-    overrideTexture(entity)
+  const obj3d = getComponent(entity, Object3DComponent)?.value
+  if (obj3d) {
+    if (typeof properties.generateBVH === 'boolean') {
+      enableObjectLayer(obj3d, ObjectLayers.Camera, properties.generateBVH)
+    }
   }
 
   if (typeof properties.useBasicMaterial === 'boolean') {
@@ -100,24 +127,18 @@ export const serializeModel: ComponentSerializeFunction = (entity) => {
     name: SCENE_COMPONENT_MODEL,
     props: {
       src: component.src,
-      textureOverride: component.textureOverride,
       materialOverrides: overrides,
+      generateBVH: component.generateBVH,
       matrixAutoUpdate: component.matrixAutoUpdate,
       useBasicMaterial: component.useBasicMaterial,
-      isUsingGPUInstancing: component.isUsingGPUInstancing,
-      isDynamicObject: component.isDynamicObject
+      isUsingGPUInstancing: component.isUsingGPUInstancing
     }
   }
 }
 
 const parseModelProperties = (props): ModelComponentType => {
   return {
-    src: props.src ?? SCENE_COMPONENT_MODEL_DEFAULT_VALUE.src,
-    textureOverride: props.textureOverride ?? SCENE_COMPONENT_MODEL_DEFAULT_VALUE.textureOverride,
-    materialOverrides: props.materialOverrides ?? SCENE_COMPONENT_MODEL_DEFAULT_VALUE.materialOverrides,
-    matrixAutoUpdate: props.matrixAutoUpdate ?? SCENE_COMPONENT_MODEL_DEFAULT_VALUE.matrixAutoUpdate,
-    useBasicMaterial: props.useBasicMaterial ?? SCENE_COMPONENT_MODEL_DEFAULT_VALUE.useBasicMaterial,
-    isUsingGPUInstancing: props.isUsingGPUInstancing ?? SCENE_COMPONENT_MODEL_DEFAULT_VALUE.isUsingGPUInstancing,
-    isDynamicObject: props.isDynamicObject ?? SCENE_COMPONENT_MODEL_DEFAULT_VALUE.isDynamicObject
+    ...SCENE_COMPONENT_MODEL_DEFAULT_VALUE,
+    ...props
   }
 }

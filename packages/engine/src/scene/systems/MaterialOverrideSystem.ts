@@ -1,10 +1,14 @@
 import { Material, Mesh } from 'three'
 
+import { getState } from '@xrengine/hyperflux'
+
+import { EngineState } from '../../ecs/classes/EngineState'
 import { Entity } from '../../ecs/classes/Entity'
 import { World } from '../../ecs/classes/World'
 import { defineQuery, getComponent } from '../../ecs/functions/ComponentFunctions'
 import { assignMaterial, MaterialParms } from '../../renderer/materials/MaterialParms'
 import { MaterialOverrideComponent, MaterialOverrideComponentType } from '../components/MaterialOverrideComponent'
+import { Object3DComponent } from '../components/Object3DComponent'
 
 export type MatRend = {
   mesh: Mesh
@@ -26,7 +30,7 @@ type EntityEntry = Map<MaterialOverrideComponentType, OverrideEntry>
  * @returns
  */
 export default async function MaterialOverrideSystem(world: World) {
-  const overrideQuery = defineQuery([MaterialOverrideComponent])
+  const overrideQuery = defineQuery([MaterialOverrideComponent]) //, Object3DComponent])
 
   const overrideTable: Map<Entity, EntityEntry> = new Map()
 
@@ -72,11 +76,12 @@ export default async function MaterialOverrideSystem(world: World) {
     }
 
     //Performs update functions for each override that is currently active in the scene
+    const fixedDelta = getState(EngineState).fixedDeltaSeconds.value
     for (const entity of overrideQuery()) {
       const override = getComponent(entity, MaterialOverrideComponent)
       const entityEntry = overrideTable.get(override.targetEntity!)!
       for (const overrideEntry of entityEntry.values()) {
-        overrideEntry.matParm.update(world.fixedDeltaSeconds / 4)
+        overrideEntry.matParm.update(fixedDelta / 4)
       }
     }
   }

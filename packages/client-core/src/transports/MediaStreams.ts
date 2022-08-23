@@ -1,14 +1,13 @@
+import multiLogger from '@xrengine/common/src/logger'
 import { matches } from '@xrengine/engine/src/common/functions/MatchesUtils'
 import { localAudioConstraints, localVideoConstraints } from '@xrengine/engine/src/networking/constants/VideoConstants'
-import { NearbyUser } from '@xrengine/engine/src/networking/functions/getNearbyUsers'
 import { defineAction } from '@xrengine/hyperflux'
+
+const logger = multiLogger.child({ component: 'client-core:MediaStreams' })
 
 /** System class for media streaming. */
 export class MediaStreams {
   static actions = {
-    triggerRequestCurrentProducers: defineAction({
-      type: 'NETWORK_TRANSPORT_EVENT_REQUEST_CURRENT_PRODUCERS' as const
-    }),
     triggerUpdateConsumers: defineAction({
       type: 'NETWORK_TRANSPORT_EVENT_UPDATE_CONSUMERS' as const
     }),
@@ -27,13 +26,13 @@ export class MediaStreams {
   faceTracking = false
   /** Video stream for streaming data. */
   videoStream: MediaStream = null!
-  /** Video stream for streaming data. */
+  /** Audio stream for streaming data. */
   audioStream: MediaStream = null!
   /** Audio Gain to be applied on media stream. */
-  audioGainNode: GainNode = null!
+  microphoneGainNode: GainNode = null!
 
   /** Local screen container. */
-  localScreen = null as any
+  localScreen = null! as MediaStream
   /** Producer using camera to get Video. */
   camVideoProducer = null as any
   /** Producer using camera to get Audio. */
@@ -46,10 +45,6 @@ export class MediaStreams {
   screenShareVideoPaused = false
   /** Indication of whether the audio while screen sharing is paused or not. */
   screenShareAudioPaused = false
-  /** Whether the component is initialized or not. */
-  initialized = false
-
-  nearbyLayerUsers = [] as NearbyUser[]
 
   /**
    * Set face tracking state.
@@ -67,7 +62,7 @@ export class MediaStreams {
    * @returns Updated Pause state.
    */
   setVideoPaused(state: boolean): boolean {
-    console.log('setVideoPaused')
+    logger.info('setVideoPaused')
     this.videoPaused = state
     return this.videoPaused
   }
@@ -107,8 +102,7 @@ export class MediaStreams {
    * @returns Updated Pause state.
    */
   toggleVideoPaused(): boolean {
-    console.log('toggleVideoPaused')
-    console.log(this.videoPaused)
+    logger.info(`toggleVideoPaused: ${this.videoPaused}`)
     this.videoPaused = !this.videoPaused
     return this.videoPaused
   }
@@ -144,13 +138,13 @@ export class MediaStreams {
    * Start the camera.
    * @returns Whether the camera is started or not. */
   async startCamera(): Promise<boolean> {
-    console.log('start camera')
+    logger.info('Start camera')
     if (this.videoStream?.active) return false
     return await this.getVideoStream()
   }
 
   async startMic(): Promise<boolean> {
-    console.log('start Mic')
+    logger.info('Start Mic')
     if (this.audioStream?.active) return false
     return await this.getAudioStream()
   }
@@ -161,17 +155,17 @@ export class MediaStreams {
    */
   async cycleCamera(): Promise<boolean> {
     if (!(this.camVideoProducer && this.camVideoProducer.track)) {
-      console.log('cannot cycle camera - no current camera track')
+      logger.info('Cannot cycle camera - no current camera track')
       return false
     }
-    console.log('cycle camera')
+    logger.info('Cycle camera')
 
     // find "next" device in device list
     const deviceId = await this.getCurrentDeviceId('video')
     const allDevices = await navigator.mediaDevices.enumerateDevices()
     const vidDevices = allDevices.filter((d) => d.kind === 'videoinput')
     if (!(vidDevices.length > 1)) {
-      console.log('cannot cycle camera - only one camera')
+      logger.info('Cannot cycle camera - only one camera')
       return false
     }
     let index = vidDevices.findIndex((d) => d.deviceId === deviceId)
@@ -182,7 +176,7 @@ export class MediaStreams {
     // just in case browsers want to group audio/video streams together
     // from the same device when possible (though they don't seem to,
     // currently)
-    console.log('getting a video stream from new device', vidDevices[index].label)
+    logger.info(`Getting a video stream from new device "${vidDevices[index].label}".`)
     this.videoStream = await navigator.mediaDevices.getUserMedia({
       video: { deviceId: { exact: vidDevices[index].deviceId } }
     })
@@ -254,19 +248,21 @@ export class MediaStreams {
    */
   async getVideoStream(): Promise<boolean> {
     try {
-      console.log('Getting video stream')
-      console.log(localVideoConstraints)
+      logger.info('Getting video stream %o', localVideoConstraints)
       this.videoStream = await navigator.mediaDevices.getUserMedia(localVideoConstraints)
-      console.log(this.videoStream)
+      if (this.camVideoProducer && !this.camVideoProducer.closed) {
+        await this.camVideoProducer.replaceTrack({
+          track: this.videoStream.getVideoTracks()[0]
+        })
+      }
       if (this.videoStream.active) {
-        this.videoPaused = false
+        this.videoPaused = this.camVideoProducer != null
         return true
       }
       this.videoPaused = true
       return false
     } catch (err) {
-      console.log('failed to get video stream')
-      console.log(err)
+      logger.error(err, 'Failed to get video stream')
     }
     return false
   }
@@ -277,19 +273,20 @@ export class MediaStreams {
    */
   async getAudioStream(): Promise<boolean> {
     try {
-      console.log('Getting audio stream')
-      console.log(localAudioConstraints)
+      logger.info('Getting audio stream %o', localAudioConstraints)
       this.audioStream = await navigator.mediaDevices.getUserMedia(localAudioConstraints)
-      console.log(this.audioStream)
+      if (this.camAudioProducer && !this.camAudioProducer.closed)
+        await this.camAudioProducer.replaceTrack({
+          track: this.audioStream.getAudioTracks()[0]
+        })
       if (this.audioStream.active) {
-        this.audioPaused = false
+        this.audioPaused = this.camAudioProducer != null
         return true
       }
       this.audioPaused = true
       return false
     } catch (err) {
-      console.log('failed to get audio stream')
-      console.log(err)
+      logger.error(err, 'Failed to get audio stream')
     }
     return false
   }

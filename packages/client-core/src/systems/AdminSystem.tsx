@@ -10,6 +10,7 @@ import { AdminGithubAppReceptors, GithubAppActions } from '../admin/services/Git
 import { AdminGroupActions, AdminGroupServiceReceptors } from '../admin/services/GroupService'
 import { InstanceserverActions, InstanceServerSettingReceptors } from '../admin/services/InstanceserverService'
 import { AdminInstanceActions, AdminInstanceReceptors } from '../admin/services/InstanceService'
+import { AdminInviteActions, AdminInviteReceptors } from '../admin/services/InviteService'
 import { AdminLocationActions, AdminLocationReceptors } from '../admin/services/LocationService'
 import { AdminPartyActions, AdminPartyReceptors } from '../admin/services/PartyService'
 import { AdminRouteActions, AdminRouteReceptors } from '../admin/services/RouteService'
@@ -35,9 +36,7 @@ import {
 } from '../admin/services/Setting/InstanceServerSettingService'
 import { AdminProjectSettingsActions, ProjectSettingReceptors } from '../admin/services/Setting/ProjectSettingService'
 import { AdminServerSettingActions, ServerSettingReceptors } from '../admin/services/Setting/ServerSettingService'
-import { AdminStaticResourceActions, AdminStaticResourceReceptors } from '../admin/services/StaticResourceService'
 import { AdminTestBotActions, AdminTestBotReceptors } from '../admin/services/TestBotService'
-import { AdminUserRoleActions, AdminUserRoleReceptors } from '../admin/services/UserRoleService'
 import { AdminUserActions, AdminUserReceptors } from '../admin/services/UserService'
 
 export default async function AdminSystem(world: World) {
@@ -60,8 +59,8 @@ export default async function AdminSystem(world: World) {
   const avatarCreatedQueue = createActionQueue(AdminAvatarActions.avatarCreated.matches)
   const avatarRemovedQueue = createActionQueue(AdminAvatarActions.avatarRemoved.matches)
   const avatarUpdatedQueue = createActionQueue(AdminAvatarActions.avatarUpdated.matches)
-  const thumbnailFetchedQueue = createActionQueue(AdminAvatarActions.thumbnailFetched.matches)
   const scenesFetchedQueue = createActionQueue(AdminSceneActions.scenesFetched.matches)
+  const sceneFetchedQueue = createActionQueue(AdminSceneActions.sceneFetched.matches)
   const locationsRetrievedQueue = createActionQueue(AdminLocationActions.locationsRetrieved.matches)
   const locationCreatedQueue = createActionQueue(AdminLocationActions.locationCreated.matches)
   const locationPatchedQueue = createActionQueue(AdminLocationActions.locationPatched.matches)
@@ -96,7 +95,6 @@ export default async function AdminSystem(world: World) {
   const githubAppFetchedQueue = createActionQueue(GithubAppActions.githubAppFetched.matches)
   const installedRoutesRetrievedQueue = createActionQueue(AdminRouteActions.installedRoutesRetrieved.matches)
   const activeRoutesRetrievedQueue = createActionQueue(AdminActiveRouteActions.activeRoutesRetrieved.matches)
-  const fetchedStaticResourceQueue = createActionQueue(AdminStaticResourceActions.fetchedStaticResource.matches)
   const fetchedSingleUserQueue = createActionQueue(AdminUserActions.fetchedSingleUser.matches)
   const loadedUsersQueue = createActionQueue(AdminUserActions.loadedUsers.matches)
   const userAdminRemovedQueue = createActionQueue(AdminUserActions.userAdminRemoved.matches)
@@ -104,15 +102,15 @@ export default async function AdminSystem(world: World) {
   const userPatchedQueue = createActionQueue(AdminUserActions.userPatched.matches)
   const searchedUserQueue = createActionQueue(AdminUserActions.searchedUser.matches)
   const setSkipGuestsQueue = createActionQueue(AdminUserActions.setSkipGuests.matches)
-  const setUserRoleQueue = createActionQueue(AdminUserActions.setUserRole.matches)
   const resetFilterQueue = createActionQueue(AdminUserActions.resetFilter.matches)
-  const userRoleRetrievedQueue = createActionQueue(AdminUserRoleActions.userRoleRetrieved.matches)
-  const userRoleCreatedQueue = createActionQueue(AdminUserRoleActions.userRoleCreated.matches)
-  const userRoleUpdatedQueue = createActionQueue(AdminUserRoleActions.userRoleUpdated.matches)
   const fetchedInstanceServerQueue = createActionQueue(InstanceServerSettingActions.fetchedInstanceServer.matches)
   const chargebeeSettingRetrievedQueue = createActionQueue(
     AdminChargebeeSettingActions.chargebeeSettingRetrieved.matches
   )
+  const invitesRetrievedQueue = createActionQueue(AdminInviteActions.invitesRetrieved.matches)
+  const inviteCreatedQueue = createActionQueue(AdminInviteActions.inviteCreated.matches)
+  const invitePatchedQueue = createActionQueue(AdminInviteActions.invitePatched.matches)
+  const inviteRemovedQueue = createActionQueue(AdminInviteActions.inviteRemoved.matches)
   // const authSettingRetrievedQueue = createActionQueue(AuthSettingsActions.authSettingRetrieved.matches)
   // const authSettingPatchedQueue = createActionQueue(AuthSettingsActions.authSettingPatched.matches)
   // const fetchedClientQueue = createActionQueue(ClientSettingActions.fetchedClient.matches)
@@ -176,11 +174,11 @@ export default async function AdminSystem(world: World) {
     for (const action of avatarUpdatedQueue()) {
       AdminAvatarReceptors.avatarUpdatedReceptor(action)
     }
-    for (const action of thumbnailFetchedQueue()) {
-      AdminAvatarReceptors.thumbnailFetchedReceptor(action)
-    }
     for (const action of scenesFetchedQueue()) {
       AdminSceneReceptors.scenesFetchedReceptor(action)
+    }
+    for (const action of sceneFetchedQueue()) {
+      AdminSceneReceptors.sceneFetchedReceptor(action)
     }
     for (const action of locationsRetrievedQueue()) {
       AdminLocationReceptors.locationsRetrievedReceptor(action)
@@ -284,9 +282,6 @@ export default async function AdminSystem(world: World) {
     for (const action of activeRoutesRetrievedQueue()) {
       AdminActiveRouteReceptors.activeRoutesRetrievedReceptor(action)
     }
-    for (const action of fetchedStaticResourceQueue()) {
-      AdminStaticResourceReceptors.fetchedStaticResourceReceptor(action)
-    }
     for (const action of fetchedSingleUserQueue()) {
       AdminUserReceptors.fetchedSingleUserReceptor(action)
     }
@@ -308,26 +303,26 @@ export default async function AdminSystem(world: World) {
     for (const action of setSkipGuestsQueue()) {
       AdminUserReceptors.setSkipGuestsReceptor(action)
     }
-    for (const action of setUserRoleQueue()) {
-      AdminUserReceptors.setUserRoleReceptor(action)
-    }
     for (const action of resetFilterQueue()) {
       AdminUserReceptors.resetFilterReceptor(action)
-    }
-    for (const action of userRoleRetrievedQueue()) {
-      AdminUserRoleReceptors.userRoleRetrievedReceptor(action)
-    }
-    for (const action of userRoleCreatedQueue()) {
-      AdminUserRoleReceptors.userRoleCreatedReceptor(action)
-    }
-    for (const action of userRoleUpdatedQueue()) {
-      AdminUserRoleReceptors.userRoleUpdatedReceptor(action)
     }
     for (const action of fetchedInstanceServerQueue()) {
       AdminInstanceServerReceptors.fetchedInstanceServerReceptor(action)
     }
     for (const action of chargebeeSettingRetrievedQueue()) {
       AdminChargebeeReceptors.chargebeeSettingRetrievedReceptor(action)
+    }
+    for (const action of invitesRetrievedQueue()) {
+      AdminInviteReceptors.invitesRetrievedReceptor(action)
+    }
+    for (const action of inviteCreatedQueue()) {
+      AdminInviteReceptors.inviteCreatedReceptor(action)
+    }
+    for (const action of invitePatchedQueue()) {
+      AdminInviteReceptors.invitePatchedReceptor(action)
+    }
+    for (const action of inviteRemovedQueue()) {
+      AdminInviteReceptors.inviteRemovedReceptor(action)
     }
     // for (const action of authSettingRetrievedQueue()) {
     //   AuthSettingsReceptors.authSettingRetrievedReceptor(action)

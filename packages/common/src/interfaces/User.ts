@@ -1,19 +1,17 @@
-import { AdminScopeType } from './AdminScopeType'
+import { InstanceInterface } from '../dbmodels/Instance'
+import { ThemeMode } from './ClientSetting'
 import { IdentityProvider } from './IdentityProvider'
 import { LocationAdmin } from './LocationAdmin'
 import { LocationBan } from './LocationBan'
 import { Party } from './Party'
+import { StaticResourceInterface } from './StaticResourceInterface'
 import { UserApiKey } from './UserApiKey'
 import { UserId } from './UserId'
 import { RelationshipType } from './UserRelationship'
 
 export interface UserSetting {
   id: string
-  spatialAudioEnabled: boolean
-  volume?: number
-  audio: number
-  microphone: number
-  themeMode: string
+  themeModes: ThemeMode
 }
 
 export interface UserScope {
@@ -21,18 +19,21 @@ export interface UserScope {
   id: string
 }
 
-export interface User {
+export interface UserInterface {
   id: UserId
   name: string
-  userRole?: string
+  isGuest: boolean
   avatarId?: string
+  identity_providers?: IdentityProvider[]
   identityProviders?: IdentityProvider[]
   locationAdmins?: LocationAdmin[]
   relationType?: RelationshipType
   inverseRelationType?: RelationshipType
   avatarUrl?: string
   instanceId?: string
+  instance?: InstanceInterface
   channelInstanceId?: string
+  channelInstance?: InstanceInterface
   partyId?: string
   locationBans?: LocationBan[]
   user_setting?: UserSetting
@@ -40,12 +41,13 @@ export interface User {
   party?: Party
   scopes?: UserScope[]
   apiKey: UserApiKey
+  static_resources?: StaticResourceInterface
 }
 
-export const UserSeed: User = {
+export const UserSeed: UserInterface = {
   id: '' as UserId,
   name: '',
-  userRole: '',
+  isGuest: true,
   avatarId: '',
   apiKey: {
     id: '',
@@ -58,12 +60,13 @@ export const UserSeed: User = {
 
 export interface CreateEditUser {
   name: string
-  avatarId: string
-  userRole: string
-  scopes: AdminScopeType[]
+  avatarId?: string
+  inviteCode?: string
+  isGuest?: boolean
+  scopes?: UserScope[]
 }
 
-export function resolveUser(user: any): User {
+export function resolveUser(user: any): UserInterface {
   let returned = user
   if (user?.identity_providers) {
     returned = {
@@ -95,18 +98,16 @@ export function resolveUser(user: any): User {
   return returned
 }
 
-export function resolveWalletUser(credentials: any): User {
-  let returned = {
+export function resolveWalletUser(credentials: any): UserInterface {
+  return {
     id: '' as UserId,
     instanceId: credentials.user.id,
     name: credentials.user.displayName,
-    userRole: 'guest',
+    isGuest: true,
     avatarId: credentials.user.id,
     identityProviders: [],
     locationAdmins: [],
     avatarUrl: credentials.user.icon,
     apiKey: credentials.user.apiKey || { id: '', token: '', userId: '' as UserId }
   }
-
-  return returned
 }

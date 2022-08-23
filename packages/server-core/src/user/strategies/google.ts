@@ -1,7 +1,13 @@
-import { Params } from '@feathersjs/feathers'
+import { Paginated, Params } from '@feathersjs/feathers'
+import { random } from 'lodash'
+
+import { AvatarInterface } from '@xrengine/common/src/interfaces/AvatarInterface'
+import { UserInterface } from '@xrengine/common/src/interfaces/User'
 
 import { Application } from '../../../declarations'
 import config from '../../appconfig'
+import getFreeInviteCode from '../../util/get-free-invite-code'
+import makeInitialAdmin from '../../util/make-initial-admin'
 import CustomOAuthStrategy from './custom-oauth'
 
 export class Googlestrategy extends CustomOAuthStrategy {
@@ -32,16 +38,26 @@ export class Googlestrategy extends CustomOAuthStrategy {
       { accessToken: params?.authentication?.accessToken },
       {}
     )
+    if (!entity.userId) {
+      const avatars = (await this.app.service('avatar').find({ isInternal: true })) as Paginated<AvatarInterface>
+      const code = await getFreeInviteCode(this.app)
+      const newUser = (await this.app.service('user').create({
+        isGuest: false,
+        inviteCode: code,
+        avatarId: avatars[random(avatars.total - 1)].id
+      })) as UserInterface
+      entity.userId = newUser.id
+      await this.app.service('identity-provider').patch(entity.id, {
+        userId: newUser.id
+      })
+    }
     const identityProvider = authResult['identity-provider']
     const user = await this.app.service('user').get(entity.userId)
-    const adminCount = await this.app.service('user').Model.count({
-      where: {
-        userRole: 'admin'
-      }
-    })
-    await this.app.service('user').patch(entity.userId, {
-      userRole: user?.userRole === 'admin' || adminCount === 0 ? 'admin' : 'user'
-    })
+    await makeInitialAdmin(this.app, user.id)
+    if (user.isGuest)
+      await this.app.service('user').patch(entity.userId, {
+        isGuest: false
+      })
     const apiKey = await this.app.service('user-api-key').find({
       query: {
         userId: entity.userId

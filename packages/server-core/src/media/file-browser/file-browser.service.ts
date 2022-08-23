@@ -44,22 +44,18 @@ export default (app: Application): any => {
         // Clear params otherwise all the files and auth details send back to client as  response
         for (const prop of Object.getOwnPropertyNames(params)) delete params[prop]
 
-        return result
+        return { url: result }
       }
     }
   )
 
   /**
    * Initialize our service with any options it requires and docs
-   *
-   * @author Abhishek Pathak
    */
   app.use('file-browser', fileBrowser)
 
   /**
    * Get our initialized service so that we can register hooks
-   *
-   * @author Abhishek Pathak
    */
   const service = app.service('file-browser')
 

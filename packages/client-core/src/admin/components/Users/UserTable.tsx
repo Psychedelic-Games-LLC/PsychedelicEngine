@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { User } from '@xrengine/common/src/interfaces/User'
+import { UserInterface } from '@xrengine/common/src/interfaces/User'
 
 import Box from '@mui/material/Box'
 
 import { useAuthState } from '../../../user/services/AuthService'
-import ConfirmModal from '../../common/ConfirmModal'
+import ConfirmDialog from '../../common/ConfirmDialog'
 import TableComponent from '../../common/Table'
 import { userColumns, UserData, UserProps } from '../../common/variables/user'
 import { AdminUserService, USER_PAGE_LIMIT, useUserState } from '../../services/UserService'
@@ -22,7 +22,7 @@ const UserTable = ({ className, search }: UserProps) => {
   const [fieldOrder, setFieldOrder] = useState('asc')
   const [sortField, setSortField] = useState('name')
   const [openUserDrawer, setOpenUserDrawer] = useState(false)
-  const [userAdmin, setUserAdmin] = useState<User | null>(null)
+  const [userAdmin, setUserAdmin] = useState<UserInterface | null>(null)
   const authState = useAuthState()
   const user = authState.user
   const adminUserState = useUserState()
@@ -57,10 +57,10 @@ const UserTable = ({ className, search }: UserProps) => {
 
   const createData = (
     id: string,
-    el: User,
+    el: UserInterface,
     name: string,
     avatarId: string | JSX.Element,
-    userRole: string | JSX.Element,
+    isGuest: string,
     location: string | JSX.Element,
     inviteCode: string | JSX.Element,
     instanceId: string | JSX.Element
@@ -70,7 +70,7 @@ const UserTable = ({ className, search }: UserProps) => {
       el,
       name,
       avatarId,
-      userRole,
+      isGuest,
       location,
       inviteCode,
       instanceId,
@@ -84,7 +84,7 @@ const UserTable = ({ className, search }: UserProps) => {
               setOpenUserDrawer(true)
             }}
           >
-            <span className={styles.spanWhite}>{t('admin:components.index.view')}</span>
+            <span className={styles.spanWhite}>{t('admin:components.common.view')}</span>
           </a>
           {user.id.value !== id && (
             <a
@@ -96,7 +96,7 @@ const UserTable = ({ className, search }: UserProps) => {
                 setOpenConfirm(true)
               }}
             >
-              <span className={styles.spanDange}>{t('admin:components.index.delete')}</span>
+              <span className={styles.spanDange}>{t('admin:components.common.delete')}</span>
             </a>
           )}
         </>
@@ -105,28 +105,19 @@ const UserTable = ({ className, search }: UserProps) => {
   }
 
   const rows = adminUsers.map((el) => {
-    const loc = el.party?.id ? el.party.location : null
-    const loca = loc ? (
-      loc.name || <span className={styles.spanNone}>{t('admin:components.index.none')}</span>
-    ) : (
-      <span className={styles.spanNone}>{t('admin:components.index.none')}</span>
-    )
-    const ins = el.party?.id ? el.party.instance : null
-    const inst = ins ? (
-      ins.ipAddress || <span className={styles.spanNone}>{t('admin:components.index.none')}</span>
-    ) : (
-      <span className={styles.spanNone}>{t('admin:components.index.none')}</span>
-    )
-
     return createData(
       el.id || '',
       el,
       el.name,
-      el.avatarId || <span className={styles.spanNone}>{t('admin:components.index.none')}</span>,
-      el.userRole || <span className={styles.spanNone}>{t('admin:components.index.none')}</span>,
-      loca,
-      el.inviteCode || <span className={styles.spanNone}>{t('admin:components.index.none')}</span>,
-      inst
+      el.avatarId || <span className={styles.spanNone}>{t('admin:components.common.none')}</span>,
+      el.isGuest.toString(),
+      el.instance && el.instance.location ? (
+        el.instance.location.name
+      ) : (
+        <span className={styles.spanNone}>{t('admin:components.common.none')}</span>
+      ),
+      el.inviteCode || <span className={styles.spanNone}>{t('admin:components.common.none')}</span>,
+      el.instance ? el.instance.ipAddress : <span className={styles.spanNone}>{t('admin:components.common.none')}</span>
     )
   })
 
@@ -145,7 +136,7 @@ const UserTable = ({ className, search }: UserProps) => {
         handlePageChange={handlePageChange}
         handleRowsPerPageChange={handleRowsPerPageChange}
       />
-      <ConfirmModal
+      <ConfirmDialog
         open={openConfirm}
         description={`${t('admin:components.user.confirmUserDelete')} '${userName}'?`}
         onClose={() => setOpenConfirm(false)}

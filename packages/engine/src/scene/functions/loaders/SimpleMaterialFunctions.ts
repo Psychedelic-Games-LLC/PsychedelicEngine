@@ -34,8 +34,7 @@ export const deserializeSimpleMaterial: ComponentDeserializeFunction = (
 ) => {
   if (!json.props.simpleMaterials) return
 
-  addComponent(entity, SimpleMaterialTagComponent, {})
-  Engine.instance.simpleMaterials = json.props.simpleMaterials
+  addComponent(entity, SimpleMaterialTagComponent, true)
 
   getComponent(entity, EntityNodeComponent)?.components.push(SCENE_COMPONENT_SIMPLE_MATERIALS)
 }

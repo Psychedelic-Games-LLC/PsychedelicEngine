@@ -40,7 +40,7 @@ function prepare(command: GroupCommandParams) {
     command.undo = {
       parents: [],
       befores: [],
-      selection: accessSelectionState().selectedEntities.value.slice(0)
+      selection: accessSelectionState().selectedEntities.value.filter((obj) => typeof obj !== 'string') as Entity[]
     }
 
     const tree = Engine.instance.currentWorld.entityTree
@@ -131,7 +131,7 @@ function emitEventBefore(command: GroupCommandParams) {
   if (command.preventEvents) return
 
   cancelGrabOrPlacement()
-  dispatchAction(SelectionAction.changedBeforeSelection())
+  dispatchAction(SelectionAction.changedBeforeSelection({}))
 }
 
 function emitEventAfter(command: GroupCommandParams) {
@@ -140,7 +140,7 @@ function emitEventAfter(command: GroupCommandParams) {
   if (command.updateSelection) updateOutlinePassSelection()
 
   dispatchAction(EditorAction.sceneModified({ modified: true }))
-  dispatchAction(SelectionAction.changedSceneGraph())
+  dispatchAction(SelectionAction.changedSceneGraph({}))
 }
 
 function toString(command: GroupCommandParams) {

@@ -1,6 +1,3 @@
-/**
- * @author Abhishek Pathak <abhi.pathak401@gmail.com>
- */
 import React from 'react'
 import styled from 'styled-components'
 
@@ -10,7 +7,7 @@ import { EnvMapBakeTypes } from '@xrengine/engine/src/scene/types/EnvMapBakeType
 
 import SportsGolfIcon from '@mui/icons-material/SportsGolf'
 
-import { uploadBakeToServer } from '../../functions/uploadEnvMapBake'
+import { uploadBPCEMBakeToServer } from '../../functions/uploadEnvMapBake'
 import { PropertiesPanelButton } from '../inputs/Button'
 import { EnvMapBakeProperties } from './EnvMapBakeProperties'
 import NodeEditor from './NodeEditor'
@@ -122,7 +119,7 @@ export const EnvMapBakeNodeEditor: EditorComponentType = (props) => {
   return (
     <NodeEditor {...props} name="EnvMap Bake" description="For Adding EnvMap bake in your scene">
       {renderEnvMapBakeProperties()}
-      <PropertiesPanelButton onClick={() => uploadBakeToServer(props.node.entity)}>Bake</PropertiesPanelButton>
+      <PropertiesPanelButton onClick={() => uploadBPCEMBakeToServer(props.node.entity)}>Bake</PropertiesPanelButton>
     </NodeEditor>
   )
 }

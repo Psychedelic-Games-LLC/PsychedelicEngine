@@ -1,4 +1,5 @@
 import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
+import { EngineActions } from '@xrengine/engine/src/ecs/classes/EngineState'
 import {
   ComponentConstructor,
   ComponentType,
@@ -37,7 +38,7 @@ function prepare<C extends ComponentConstructor<any, any>>(command: ModifyProper
 
         for (const propertyName of propertyNames) {
           const { result, finalProp } = getNestedObject(comp, propertyName)
-          const oldValue = result[finalProp]
+          const oldValue = result ? result[finalProp] : {}
           oldProps[propertyName] = oldValue && oldValue.clone ? oldValue.clone() : oldValue
         }
 
@@ -117,12 +118,14 @@ function updateProperty<C extends ComponentConstructor<any, any>>(
       }
     }
 
+    /** @todo deprecate in favour of 'EngineActions.sceneObjectUpdate' action */
     const nodeComponent = getComponent(entity, EntityNodeComponent)
     for (const component of nodeComponent.components) {
       Engine.instance.currentWorld.sceneLoadingRegistry.get(component)?.update?.(entity, props)
     }
   }
 
+  dispatchAction(EngineActions.sceneObjectUpdate({ entities: command.affectedNodes.map((node) => node.entity) }))
   dispatchAction(EditorAction.sceneModified({ modified: true }))
 }
 
@@ -146,6 +149,7 @@ export function getNestedObject(object: any, propertyName: string): { result: an
   let result = object
 
   for (let i = 0; i < props.length - 1; i++) {
+    if (typeof result[props[i]] === 'undefined') result[props[i]] = {}
     result = result[props[i]]
   }
 

@@ -1,26 +1,23 @@
 import { getComponent } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
 import { EngineRenderer } from '@xrengine/engine/src/renderer/WebGLRendererSystem'
 
-import { InputComponent, InputComponentType } from '../classes/InputComponent'
+import { EditorInputComponent, EditorInputComponentType } from '../classes/InputComponent'
 import isInputSelected from '../functions/isInputSelected'
 import { SceneState } from '../functions/sceneRenderFunctions'
 import { Action, ActionKey, ActionState, InputMapping, MouseButtons, SpecialAliases } from './input-mappings'
 
 type InputDataType = {
-  boundingClientRect: DOMRect
   mouseDownTarget: EventTarget | null
 }
 
 const InputData: InputDataType = {
-  boundingClientRect: {} as DOMRect,
   mouseDownTarget: null
 } as InputDataType
 
-let inputComponent: InputComponentType
+let inputComponent: EditorInputComponentType
 
 export function initInputEvents() {
   const canvas = EngineRenderer.instance.renderer.domElement
-  InputData.boundingClientRect = canvas.getBoundingClientRect()
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
   canvas.addEventListener('wheel', onWheel)
@@ -33,7 +30,6 @@ export function initInputEvents() {
   window.addEventListener('blur', onWindowBlur)
   window.addEventListener('mousedown', onWindowMouseDown)
   window.addEventListener('mouseup', onWindowMouseUp)
-  window.addEventListener('resize', onResize)
 }
 
 function handleActionCallback(action: Action, event: Event): void {
@@ -61,7 +57,7 @@ function handleKeyMappings(state: ActionState, inputMapping: InputMapping, event
 }
 
 function handlePosition(state: ActionState, positionAction: ActionKey, event: MouseEvent): void {
-  const rect = InputData.boundingClientRect
+  const rect = EngineRenderer.instance.renderer.domElement.getBoundingClientRect()
 
   if (!state[positionAction]) state[positionAction] = {}
 
@@ -75,7 +71,7 @@ function onKeyDown(event: KeyboardEvent): void {
   // Skip actions if input field is active
   if (isInputSelected()) return
 
-  inputComponent = getComponent(SceneState.editorEntity, InputComponent)
+  inputComponent = getComponent(SceneState.editorEntity, EditorInputComponent)
   const keyboardMapping = inputComponent.activeMapping.keyboard
   if (!keyboardMapping) return
 
@@ -93,7 +89,7 @@ function onKeyUp(event: KeyboardEvent): void {
   // Skip actions if input field is active
   if (isInputSelected()) return
 
-  inputComponent = getComponent(SceneState.editorEntity, InputComponent)
+  inputComponent = getComponent(SceneState.editorEntity, EditorInputComponent)
   const keyboardMapping = inputComponent.activeMapping.keyboard
   if (!keyboardMapping) return
 
@@ -127,7 +123,7 @@ function onWindowMouseUp(event: MouseEvent): void {
 }
 
 function onMouseDown(event: MouseEvent): void {
-  inputComponent = getComponent(SceneState.editorEntity, InputComponent)
+  inputComponent = getComponent(SceneState.editorEntity, EditorInputComponent)
   const mouseMapping = inputComponent.activeMapping.mouse
   if (!mouseMapping) return
 
@@ -150,7 +146,7 @@ function onMouseDown(event: MouseEvent): void {
 }
 
 function onMouseUp(event: MouseEvent): void {
-  inputComponent = getComponent(SceneState.editorEntity, InputComponent)
+  inputComponent = getComponent(SceneState.editorEntity, EditorInputComponent)
   const mouseMapping = inputComponent.activeMapping.mouse
   if (!mouseMapping) return
 
@@ -174,7 +170,7 @@ function onMouseUp(event: MouseEvent): void {
 }
 
 function onMouseMove(event: MouseEvent): void {
-  inputComponent = getComponent(SceneState.editorEntity, InputComponent)
+  inputComponent = getComponent(SceneState.editorEntity, EditorInputComponent)
   const mouseMapping = inputComponent.activeMapping.mouse
   if (!mouseMapping) return
 
@@ -206,7 +202,7 @@ function onMouseMove(event: MouseEvent): void {
 function onWheel(event: WheelEvent): boolean {
   event.preventDefault()
 
-  inputComponent = getComponent(SceneState.editorEntity, InputComponent)
+  inputComponent = getComponent(SceneState.editorEntity, EditorInputComponent)
   const mouseMapping = inputComponent.activeMapping.mouse
   if (!mouseMapping) return false
 
@@ -234,7 +230,7 @@ function onWheel(event: WheelEvent): boolean {
 }
 
 function onClick(event: MouseEvent): void {
-  inputComponent = getComponent(SceneState.editorEntity, InputComponent)
+  inputComponent = getComponent(SceneState.editorEntity, EditorInputComponent)
   const mouseMapping = inputComponent.activeMapping.mouse
   if (!mouseMapping) return
 
@@ -246,7 +242,7 @@ function onClick(event: MouseEvent): void {
 }
 
 function onDoubleClick(event: MouseEvent): void {
-  inputComponent = getComponent(SceneState.editorEntity, InputComponent)
+  inputComponent = getComponent(SceneState.editorEntity, EditorInputComponent)
   const mouseMapping = inputComponent.activeMapping.mouse
   if (!mouseMapping) return
 
@@ -263,12 +259,8 @@ function onContextMenu(event: Event): void {
   event.preventDefault()
 }
 
-function onResize(): void {
-  InputData.boundingClientRect = EngineRenderer.instance.renderer.domElement.getBoundingClientRect()
-}
-
 function onWindowBlur(): void {
-  inputComponent = getComponent(SceneState.editorEntity, InputComponent)
+  inputComponent = getComponent(SceneState.editorEntity, EditorInputComponent)
   const defaultState = inputComponent.defaultState
 
   const keys = Object.keys(defaultState)
@@ -293,5 +285,4 @@ export function removeInputEvents(): void {
   window.removeEventListener('blur', onWindowBlur)
   window.removeEventListener('mousedown', onWindowMouseDown)
   window.removeEventListener('mouseup', onWindowMouseUp)
-  window.removeEventListener('resize', onResize)
 }

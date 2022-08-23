@@ -3,11 +3,12 @@ import { Helmet } from 'react-helmet'
 import { Trans, useTranslation } from 'react-i18next'
 import { Redirect } from 'react-router-dom'
 
-import {
-  ClientSettingService,
-  useClientSettingState
-} from '@xrengine/client-core/src/admin/services/Setting/ClientSettingService'
+import { useClientSettingState } from '@xrengine/client-core/src/admin/services/Setting/ClientSettingService'
+import styles from '@xrengine/client-core/src/admin/styles/admin.module.scss'
+import { NotificationService } from '@xrengine/client-core/src/common/services/NotificationService'
 import ProfileMenu from '@xrengine/client-core/src/user/components/UserMenu/menus/ProfileMenu'
+
+import { Button } from '@mui/material'
 
 const ROOT_REDIRECT: any = globalThis.process.env['VITE_ROOT_REDIRECT']
 
@@ -15,6 +16,11 @@ export const HomePage = (): any => {
   const { t } = useTranslation()
   const clientSettingState = useClientSettingState()
   const [clientSetting] = clientSettingState?.client?.value || []
+
+  useEffect(() => {
+    const error = new URL(window.location.href).searchParams.get('error')
+    if (error) NotificationService.dispatchNotify(error, { variant: 'error' })
+  }, [])
 
   if (ROOT_REDIRECT && ROOT_REDIRECT.length > 0 && ROOT_REDIRECT !== 'false') {
     const redirectParsed = new URL(ROOT_REDIRECT)
@@ -38,7 +44,7 @@ export const HomePage = (): any => {
         </Helmet>
         <div className="main-background">
           <div className="img-container">
-            {clientSetting?.appBackground && <img src={clientSetting.appBackground} alt="" />}
+            {clientSetting?.appBackground && <img src={clientSetting.appBackground} alt="" crossOrigin="anonymous" />}
           </div>
         </div>
         <nav className="navbar">
@@ -56,6 +62,13 @@ export const HomePage = (): any => {
                 <span>{clientSetting.appDescription}</span>
               </Trans>
             )}
+            <Button
+              className={styles.gradientButton + ' ' + styles.forceVaporwave}
+              autoFocus
+              onClick={() => (window.location.href = 'https://etherealengine.com/explore')}
+            >
+              {t('common:exploreRedirect')}
+            </Button>
           </div>
           <div className="form-container">
             <style>
@@ -67,7 +80,6 @@ export const HomePage = (): any => {
                     left: 0px;
                     width: 100%;
                     transform: none;
-                    margin: 40px 0px;
                     pointer-events: auto;
                 }
               `}
@@ -80,7 +92,7 @@ export const HomePage = (): any => {
             {clientSetting?.appSocialLinks?.length > 0 &&
               clientSetting.appSocialLinks.map((social, index) => (
                 <a key={index} target="_blank" className="icon" href={social.link}>
-                  <img src={social.icon} />
+                  <img src={social.icon} alt="" />
                 </a>
               ))}
           </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { RouteComponentProps } from 'react-router-dom'
 
+import { API } from '@xrengine/client-core/src/API'
 import { ProjectAction, useProjectState } from '@xrengine/client-core/src/common/services/ProjectService'
 import { useAuthState } from '@xrengine/client-core/src/user/services/AuthService'
 import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
@@ -19,6 +20,49 @@ import EditorContainer from '../components/EditorContainer'
 import { EditorAction, useEditorState } from '../services/EditorServices'
 import { registerEditorReceptors } from '../services/EditorServicesReceptor'
 
+const systems = [
+  {
+    systemModulePromise: import('../systems/RenderSystem'),
+    type: SystemUpdateType.POST_RENDER,
+    args: { enabled: true }
+  },
+  {
+    systemModulePromise: import('../systems/InputSystem'),
+    type: SystemUpdateType.PRE_RENDER,
+    args: { enabled: true }
+  },
+  {
+    systemModulePromise: import('../systems/FlyControlSystem'),
+    type: SystemUpdateType.PRE_RENDER,
+    args: { enabled: true }
+  },
+  {
+    systemModulePromise: import('../systems/EditorControlSystem'),
+    type: SystemUpdateType.PRE_RENDER,
+    args: { enabled: true }
+  },
+  {
+    systemModulePromise: import('../systems/EditorLocalTransformUpdateSystem'),
+    type: SystemUpdateType.PRE_RENDER,
+    args: { enabled: true }
+  },
+  {
+    systemModulePromise: import('../systems/EditorCameraSystem'),
+    type: SystemUpdateType.PRE_RENDER,
+    args: { enabled: true }
+  },
+  {
+    systemModulePromise: import('../systems/ResetInputSystem'),
+    type: SystemUpdateType.PRE_RENDER,
+    args: { enabled: true }
+  },
+  {
+    systemModulePromise: import('../systems/GizmoSystem'),
+    type: SystemUpdateType.PRE_RENDER,
+    args: { enabled: true }
+  }
+]
+
 export const EditorPage = (props: RouteComponentProps<{ sceneName: string; projectName: string }>) => {
   const editorState = useEditorState()
   const projectState = useProjectState()
@@ -32,44 +76,6 @@ export const EditorPage = (props: RouteComponentProps<{ sceneName: string; proje
   useEffect(() => {
     registerEditorReceptors()
   }, [])
-
-  const systems = [
-    {
-      systemModulePromise: import('../systems/RenderSystem'),
-      type: SystemUpdateType.POST_RENDER,
-      args: { enabled: true }
-    },
-    {
-      systemModulePromise: import('../systems/InputSystem'),
-      type: SystemUpdateType.PRE_RENDER,
-      args: { enabled: true }
-    },
-    {
-      systemModulePromise: import('../systems/FlyControlSystem'),
-      type: SystemUpdateType.PRE_RENDER,
-      args: { enabled: true }
-    },
-    {
-      systemModulePromise: import('../systems/EditorControlSystem'),
-      type: SystemUpdateType.PRE_RENDER,
-      args: { enabled: true }
-    },
-    {
-      systemModulePromise: import('../systems/EditorCameraSystem'),
-      type: SystemUpdateType.PRE_RENDER,
-      args: { enabled: true }
-    },
-    {
-      systemModulePromise: import('../systems/ResetInputSystem'),
-      type: SystemUpdateType.PRE_RENDER,
-      args: { enabled: true }
-    },
-    {
-      systemModulePromise: import('../systems/GizmoSystem'),
-      type: SystemUpdateType.PRE_RENDER,
-      args: { enabled: true }
-    }
-  ]
 
   useEffect(() => {
     const _isAuthenticated =
@@ -93,10 +99,10 @@ export const EditorPage = (props: RouteComponentProps<{ sceneName: string; proje
     const world = Engine.instance.currentWorld
     initializeCoreSystems().then(async () => {
       initSystems(world, systems)
+      const projects = API.instance.client.service('projects').find()
       await initializeRealtimeSystems(false)
       await initializeSceneSystems()
-      const projects = projectState.projects.value.map((project) => project.name)
-      await loadEngineInjection(world, projects)
+      await loadEngineInjection(world, await projects)
       setEngineReady(true)
     })
   }, [projectState.projects.value])

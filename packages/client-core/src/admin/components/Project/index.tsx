@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Box, CircularProgress } from '@mui/material'
 import Button from '@mui/material/Button'
 import Grid from '@mui/material/Grid'
 
 import { ProjectService, useProjectState } from '../../../common/services/ProjectService'
 import { useAuthState } from '../../../user/services/AuthService'
-import ConfirmModal from '../../common/ConfirmModal'
+import ConfirmDialog from '../../common/ConfirmDialog'
 import { GithubAppService, useAdminGithubAppState } from '../../services/GithubAppService'
 import styles from '../../styles/admin.module.scss'
-import AddProject from './AddProject'
+import ProjectDrawer from './ProjectDrawer'
 import ProjectTable from './ProjectTable'
 
 const Projects = () => {
@@ -19,18 +20,44 @@ const Projects = () => {
   const githubAppState = useAdminGithubAppState()
   const githubAppRepos = githubAppState.repos.value
   const { t } = useTranslation()
-  const [uploadProjectsModalOpen, setUploadProjectsModalOpen] = useState(false)
+  const [openProjectDrawer, setOpenPartyDrawer] = useState(false)
   const [rebuildModalOpen, setRebuildModalOpen] = useState(false)
+  const [isFirstRun, setIsFirstRun] = useState(true)
 
-  const onOpenUploadModal = () => {
+  const handleOpenProjectDrawer = () => {
     GithubAppService.fetchGithubAppRepos()
-    setUploadProjectsModalOpen(true)
+    setOpenPartyDrawer(true)
   }
 
-  const onSubmitRebuild = () => {
+  const handleSubmitRebuild = async () => {
     setRebuildModalOpen(false)
-    ProjectService.triggerReload()
+
+    await ProjectService.triggerReload()
+
+    // This sleep is to ensure previous pod is terminated and new one is started.
+    await sleep(60000)
+
+    await ProjectService.checkReloadStatus()
   }
+
+  useEffect(() => {
+    ProjectService.checkReloadStatus()
+  }, [])
+
+  useEffect(() => {
+    let interval
+
+    setIsFirstRun(false)
+
+    if (adminProjectState.rebuilding.value) {
+      interval = setInterval(ProjectService.checkReloadStatus, 10000)
+    } else {
+      clearInterval(interval)
+      ProjectService.fetchProjects()
+    }
+
+    return () => clearInterval(interval)
+  }, [adminProjectState.rebuilding.value])
 
   useEffect(() => {
     if (user?.id.value != null && adminProjectState.updateNeeded.value === true) {
@@ -47,7 +74,7 @@ const Projects = () => {
             type="button"
             variant="contained"
             color="primary"
-            onClick={onOpenUploadModal}
+            onClick={handleOpenProjectDrawer}
           >
             {t('admin:components.project.addProject')}
           </Button>
@@ -60,27 +87,32 @@ const Projects = () => {
             color="primary"
             onClick={() => setRebuildModalOpen(true)}
           >
-            {t('admin:components.project.rebuild')}
+            {adminProjectState.rebuilding.value ? (
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <CircularProgress color="inherit" size={24} sx={{ marginRight: 1 }} />
+                {isFirstRun ? t('admin:components.project.checking') : t('admin:components.project.rebuilding')}
+              </Box>
+            ) : (
+              t('admin:components.project.rebuild')
+            )}
           </Button>
         </Grid>
       </Grid>
 
-      <ProjectTable className={styles.rootTable} />
+      <ProjectTable className={styles.rootTableWithSearch} />
 
-      <ConfirmModal
+      <ConfirmDialog
         open={rebuildModalOpen}
         description={t('admin:components.project.confirmProjectsRebuild')}
         onClose={() => setRebuildModalOpen(false)}
-        onSubmit={onSubmitRebuild}
+        onSubmit={handleSubmitRebuild}
       />
 
-      <AddProject
-        open={uploadProjectsModalOpen}
-        repos={githubAppRepos}
-        onClose={() => setUploadProjectsModalOpen(false)}
-      />
+      <ProjectDrawer open={openProjectDrawer} repos={githubAppRepos} onClose={() => setOpenPartyDrawer(false)} />
     </div>
   )
 }
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export default Projects

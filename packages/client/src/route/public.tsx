@@ -12,7 +12,7 @@ import {
   useClientSettingState
 } from '@xrengine/client-core/src/admin/services/Setting/ClientSettingService'
 import ErrorBoundary from '@xrengine/client-core/src/common/components/ErrorBoundary'
-import { AppServiceReceptor } from '@xrengine/client-core/src/common/services/AppService'
+import { AppLoadingServiceReceptor } from '@xrengine/client-core/src/common/services/AppLoadingService'
 import { DialogServiceReceptor } from '@xrengine/client-core/src/common/services/DialogService'
 import { MediaInstanceConnectionServiceReceptor } from '@xrengine/client-core/src/common/services/MediaInstanceConnectionService'
 import { ProjectServiceReceptor } from '@xrengine/client-core/src/common/services/ProjectService'
@@ -52,11 +52,11 @@ function RouterComp() {
     addActionReceptor(InviteServiceReceptor)
     addActionReceptor(LocationServiceReceptor)
     addActionReceptor(DialogServiceReceptor)
-    addActionReceptor(AppServiceReceptor)
+    addActionReceptor(AppLoadingServiceReceptor)
     addActionReceptor(ProjectServiceReceptor)
     addActionReceptor(MediaInstanceConnectionServiceReceptor)
 
-    dispatchAction(StoredLocalAction.restoreLocalData())
+    dispatchAction(StoredLocalAction.restoreLocalData({}))
     StoredLocalStoreService.fetchLocalStoredState()
 
     // Oauth callbacks may be running when a guest identity-provider has been deleted.
@@ -79,7 +79,7 @@ function RouterComp() {
       removeActionReceptor(InviteServiceReceptor)
       removeActionReceptor(LocationServiceReceptor)
       removeActionReceptor(DialogServiceReceptor)
-      removeActionReceptor(AppServiceReceptor)
+      removeActionReceptor(AppLoadingServiceReceptor)
       removeActionReceptor(ProjectServiceReceptor)
       removeActionReceptor(MediaInstanceConnectionServiceReceptor)
     }

@@ -74,11 +74,11 @@ export const AdminPartyService = {
       NotificationService.dispatchNotify(err.message, { variant: 'error' })
     }
   },
-  fetchAdminParty: async (value: string | null = null, skip = 0, sortField = 'location', orderBy = 'asc') => {
+  fetchAdminParty: async (value: string | null = null, skip = 0, sortField = 'maxMembers', orderBy = 'asc') => {
     const user = accessAuthState().user
 
     try {
-      if (user.userRole.value === 'admin') {
+      if (user.scopes?.value?.find((scope) => scope.type === 'admin:admin')) {
         let sortData = {}
         if (sortField.length > 0) {
           sortData[sortField] = orderBy === 'desc' ? 0 : 1

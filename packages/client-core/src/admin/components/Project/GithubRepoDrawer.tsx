@@ -44,7 +44,6 @@ const GithubRepoDrawer = ({ open, project, onClose }: Props) => {
       setProcessing(false)
       onClose()
     } catch (err) {
-      console.error(err)
       NotificationService.dispatchNotify(err.message, { variant: 'error' })
       setProcessing(false)
       throw err
@@ -59,7 +58,6 @@ const GithubRepoDrawer = ({ open, project, onClose }: Props) => {
       setProcessing(false)
       onClose()
     } catch (err) {
-      console.error(err)
       NotificationService.dispatchNotify(err.message, { variant: 'error' })
       setProcessing(false)
       throw err
@@ -97,7 +95,7 @@ const GithubRepoDrawer = ({ open, project, onClose }: Props) => {
 
               {!isCreateMode && (
                 <Button className={styles.gradientButton} startIcon={<LinkOffIcon />} onClick={handleRemove}>
-                  {t('admin:components.project.remove')}
+                  {t('admin:components.common.remove')}
                 </Button>
               )}
               <Button

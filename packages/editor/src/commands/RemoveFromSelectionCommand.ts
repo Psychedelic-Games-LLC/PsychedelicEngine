@@ -23,7 +23,9 @@ export type RemoveFromSelectionCommandParams = CommandParams & {
 
 function prepare(command: RemoveFromSelectionCommandParams) {
   if (command.keepHistory) {
-    command.undo = { selection: accessSelectionState().selectedEntities.value.slice(0) }
+    command.undo = {
+      selection: accessSelectionState().selectedEntities.value.filter((ent) => typeof ent !== 'string') as Entity[]
+    }
   }
 }
 
@@ -60,7 +62,7 @@ function emitEventBefore(command: RemoveFromSelectionCommandParams) {
   if (command.preventEvents) return
 
   cancelGrabOrPlacement()
-  dispatchAction(SelectionAction.changedBeforeSelection())
+  dispatchAction(SelectionAction.changedBeforeSelection({}))
 }
 
 function emitEventAfter(command: RemoveFromSelectionCommandParams) {

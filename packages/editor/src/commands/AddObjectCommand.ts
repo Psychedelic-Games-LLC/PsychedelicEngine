@@ -24,7 +24,7 @@ import { EditorAction } from '../services/EditorServices'
 import { accessSelectionState, SelectionAction } from '../services/SelectionServices'
 
 export type AddObjectCommandUndoParams = {
-  selection: Entity[]
+  selection: (Entity | string)[]
 }
 
 export type AddObjectCommandParams = CommandParams & {
@@ -50,7 +50,8 @@ function prepare(command: AddObjectCommandParams) {
   if (typeof command.useUniqueName === 'undefined') command.useUniqueName = true
 
   if (command.keepHistory) {
-    command.undo = { selection: accessSelectionState().selectedEntities.value.slice(0) }
+    const validEntities = accessSelectionState().selectedEntities.value.slice()
+    command.undo = { selection: validEntities }
   }
 }
 
@@ -80,7 +81,7 @@ function emitEventBefore(command: AddObjectCommandParams) {
   if (command.preventEvents) return
 
   cancelGrabOrPlacement()
-  dispatchAction(SelectionAction.changedBeforeSelection())
+  dispatchAction(SelectionAction.changedBeforeSelection({}))
 }
 
 function emitEventAfter(command: AddObjectCommandParams) {
@@ -89,7 +90,7 @@ function emitEventAfter(command: AddObjectCommandParams) {
   if (command.updateSelection) updateOutlinePassSelection()
 
   dispatchAction(EditorAction.sceneModified({ modified: true }))
-  dispatchAction(SelectionAction.changedSceneGraph())
+  dispatchAction(SelectionAction.changedSceneGraph({}))
 }
 
 function addObject(command: AddObjectCommandParams) {

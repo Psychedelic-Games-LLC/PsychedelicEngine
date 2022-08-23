@@ -1,11 +1,14 @@
 import { Paginated } from '@feathersjs/feathers'
 
 import { AdminBot, CreateBotAsAdmin } from '@xrengine/common/src/interfaces/AdminBot'
+import multiLogger from '@xrengine/common/src/logger'
 import { matches, Validator } from '@xrengine/engine/src/common/functions/MatchesUtils'
 import { defineAction, defineState, dispatchAction, getState, useState } from '@xrengine/hyperflux'
 
 import { API } from '../../API'
 import { accessAuthState } from '../../user/services/AuthService'
+
+const logger = multiLogger.child({ component: 'client-core:BotsService' })
 
 //State
 export const BOTS_PAGE_LIMIT = 100
@@ -68,7 +71,7 @@ export const AdminBotService = {
       const bot = await API.instance.client.service('bot').create(data)
       dispatchAction(AdminBotsActions.botCreated({ bot }))
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     }
   },
   fetchBotAsAdmin: async (incDec?: 'increment' | 'decrement') => {
@@ -76,7 +79,7 @@ export const AdminBotService = {
       const user = accessAuthState().user
       const skip = accessAdminBotState().skip.value
       const limit = accessAdminBotState().limit.value
-      if (user.userRole.value === 'admin') {
+      if (user.scopes?.value?.find((scope) => scope.type === 'admin:admin')) {
         const bots = (await API.instance.client.service('bot').find({
           query: {
             $sort: {
@@ -90,7 +93,7 @@ export const AdminBotService = {
         dispatchAction(AdminBotsActions.fetchedBot({ bots }))
       }
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     }
   },
   removeBots: async (id: string) => {
@@ -98,7 +101,7 @@ export const AdminBotService = {
       const bot = (await API.instance.client.service('bot').remove(id)) as AdminBot
       dispatchAction(AdminBotsActions.botRemoved({ bot }))
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     }
   },
   updateBotAsAdmin: async (id: string, bot: CreateBotAsAdmin) => {
@@ -106,7 +109,7 @@ export const AdminBotService = {
       const result = (await API.instance.client.service('bot').patch(id, bot)) as AdminBot
       dispatchAction(AdminBotsActions.botPatched({ bot: result }))
     } catch (error) {
-      console.error(error)
+      logger.error(error)
     }
   }
 }

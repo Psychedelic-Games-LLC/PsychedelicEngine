@@ -1,8 +1,10 @@
 import { Matrix4, Vector3 } from 'three'
 
-import { getComponent } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
+import multiLogger from '@xrengine/common/src/logger'
+import { getComponent, hasComponent } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
 import { Object3DComponent } from '@xrengine/engine/src/scene/components/Object3DComponent'
 import { TransformSpace } from '@xrengine/engine/src/scene/constants/transformConstants'
+import { LocalTransformComponent } from '@xrengine/engine/src/transform/components/LocalTransformComponent'
 import { TransformComponent } from '@xrengine/engine/src/transform/components/TransformComponent'
 import { dispatchAction } from '@xrengine/hyperflux'
 
@@ -12,6 +14,8 @@ import { serializeObject3DArray, serializeVector3 } from '../functions/debug'
 import { getSpaceMatrix } from '../functions/getSpaceMatrix'
 import { EditorAction } from '../services/EditorServices'
 import { SelectionAction } from '../services/SelectionServices'
+
+const logger = multiLogger.child({ component: 'editor:ScaleCommand' })
 
 export type ScaleCommandUndoParams = {
   scales: Vector3[]
@@ -80,15 +84,11 @@ function emitEventAfter(command: ScaleCommandParams) {
 }
 
 function updateScale(command: ScaleCommandParams, isUndo: boolean): void {
-  let scales = command.scales
-  let space = command.space
-  let overrideScale = command.overrideScale
+  const undo = isUndo && command.undo
 
-  if (isUndo && command.undo) {
-    scales = command.undo.scales
-    space = command.undo.space
-    overrideScale = command.undo.overrideScale
-  }
+  const scales = undo ? command.undo!.scales : command.scales
+  const space = undo ? command.undo!.space : command.space
+  const overrideScale = undo ? command.undo!.overrideScale : command.overrideScale
 
   if (!overrideScale) {
     for (let i = 0; i < command.affectedNodes.length; i++) {
@@ -96,7 +96,7 @@ function updateScale(command: ScaleCommandParams, isUndo: boolean): void {
       const scale = scales[i] ?? scales[0]
 
       if (space === TransformSpace.World && (scale.x !== scale.y || scale.x !== scale.z || scale.y !== scale.z)) {
-        console.warn('Scaling an object in world space with a non-uniform scale is not supported')
+        logger.warn('Scaling an object in world space with a non-uniform scale is not supported')
       }
 
       getComponent(node.entity, TransformComponent).scale.multiply(scale)
@@ -112,8 +112,10 @@ function updateScale(command: ScaleCommandParams, isUndo: boolean): void {
     const node = command.affectedNodes[i]
 
     const scale = scales[i] ?? scales[0]
-    let obj3d = getComponent(node.entity, Object3DComponent).value
-    let transformComponent = getComponent(node.entity, TransformComponent)
+    const obj3d = getComponent(node.entity, Object3DComponent).value
+    /** @todo figure out native local transform support */
+    // const transformComponent = hasComponent(node.entity, LocalTransformComponent) ? getComponent(node.entity, LocalTransformComponent) : getComponent(node.entity, TransformComponent)
+    const transformComponent = getComponent(node.entity, TransformComponent)
 
     if (space === TransformSpace.Local) {
       transformComponent.scale.x = scale.x === 0 ? Number.EPSILON : scale.x

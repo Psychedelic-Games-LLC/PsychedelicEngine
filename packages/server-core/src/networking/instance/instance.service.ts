@@ -84,8 +84,6 @@ export default (app: Application) => {
 
   /**
    * Initialize our service with any options it requires and docs
-   *
-   * @author Vyacheslav Solovjov
    */
   const event = new Instance(options, app)
   event.docs = instanceDocs
@@ -100,14 +98,18 @@ export default (app: Application) => {
    *
    * @param data
    * @returns deleted channel
-   * @author Vyacheslav Solovjov
    */
   service.publish('removed', async (data): Promise<any> => {
     try {
       const admins = await app.service('user').Model.findAll({
-        where: {
-          userRole: 'admin'
-        }
+        include: [
+          {
+            model: app.service('scope').Model,
+            where: {
+              type: 'admin:admin'
+            }
+          }
+        ]
       })
       const targetIds = admins.map((admin) => admin.id)
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
