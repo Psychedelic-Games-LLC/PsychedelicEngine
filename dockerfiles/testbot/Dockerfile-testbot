@@ -6,6 +6,9 @@ FROM root-builder as builder
 WORKDIR /app
 
 RUN npm install --loglevel notice --legacy-peer-deps
+
+
+
 # copy then compile the code
 COPY . .
 

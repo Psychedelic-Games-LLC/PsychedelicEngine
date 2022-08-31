@@ -18,6 +18,7 @@ COPY packages/server-core/package.json ./packages/server-core/
 
 RUN npm install --loglevel notice --legacy-peer-deps
 
+
 COPY . .
 
 # copy then compile the code

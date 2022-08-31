@@ -12,6 +12,7 @@ import multiLogger from '@xrengine/server-core/src/logger'
 
 import collectAnalytics from './collect-analytics'
 
+
 const logger = multiLogger.child({ component: 'analytics' })
 
 process.on('unhandledRejection', (error, promise) => {

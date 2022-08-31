@@ -11,6 +11,8 @@ COPY packages/server/package.json ./packages/server/
 ARG NODE_ENV
 RUN npm install --loglevel notice --legacy-peer-deps
 
+
+
 COPY . .
 
 # copy then compile the code

@@ -9,7 +9,11 @@ WORKDIR /app
 COPY packages/instanceserver/package.json ./packages/instanceserver/
 
 ARG NODE_ENV
-RUN npm install --loglevel notice --legacy-peer-deps
+# RUN npm install --loglevel notice --legacy-peer-deps
+
+COPY packages/instanceserver/package.json /var/npm-module/
+
+RUN npm install --loglevel notice --legacy-peer-deps /var/npm-module
 
 COPY . .
 

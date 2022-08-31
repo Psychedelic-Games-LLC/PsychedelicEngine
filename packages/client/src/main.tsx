@@ -11,6 +11,8 @@ import { createEngine, initializeBrowser, setupEngineActionSystems } from '@xren
 
 import { initializei18n } from './util'
 
+// Add this to the VERY top of the first file loaded in your app
+
 /**
  * Performance benchmark logging
  */
